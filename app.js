@@ -92,9 +92,18 @@ function parsePercent(rarity) {
   return Number.isFinite(n) ? n : null;
 }
 
-function sweetScentRate(rarity, scale = 20) {
+function isSweetScentHabitat(e) {
+  return (e?.encounter || "").toLowerCase() === "sweet scent";
+}
+
+function hordeRateScaleFor(e) {
+  return isHorde(e) && !isSweetScentHabitat(e) ? state.data.hordeRateScale || 20 : 1;
+}
+
+function sweetScentRate(rarity, entryOrScale = 20) {
   const n = parsePercent(rarity);
   if (n == null) return null;
+  const scale = typeof entryOrScale === "number" ? entryOrScale : hordeRateScaleFor(entryOrScale);
   const pct = Math.min(100, Math.round(n * scale * 100) / 100);
   return `${pct}%`;
 }
@@ -216,7 +225,7 @@ function rarityChips(e, showSweetScent) {
         return `<span class="rarity is-none" title="${label}">${icon} —</span>`;
       }
       if (showSweetScent && isHorde(e)) {
-        const ss = sweetScentRate(raw, state.data.hordeRateScale || 20);
+        const ss = sweetScentRate(raw, e);
         if (ss) return `<span class="rarity" title="${label}">${icon} ${ss} horde</span>`;
       }
       return `<span class="rarity" title="${label}">${icon} ${escapeHtml(raw)} single</span>`;
@@ -577,10 +586,10 @@ function bestRateLine(e) {
     if (!best || pct > best.pct) best = { ...s, pct };
   }
   if (best) {
-    const ss = isHorde(e) ? sweetScentRate(best.raw) : null;
+    const ss = isHorde(e) ? sweetScentRate(best.raw, e) : null;
     return {
       label: best.label,
-      value: ss ? `${best.raw} → ${ss}` : best.raw,
+      value: ss ? `${ss} horde` : `${best.raw} single`,
     };
   }
   for (const s of slots) {
@@ -698,16 +707,14 @@ function bestTimeSlot(e) {
   return { key: "day", icon: "☀️", label: "Day", raw: "--", pct: 0 };
 }
 
-/** Effective species % for hunting (Sweet Scent ×20 for hordes). */
-function effectiveChance(listedPct, isH, scale = 20) {
+/** Effective species % for hunting; Sweet Scent habitats are already final horde odds. */
+function effectiveChance(listedPct, entry) {
   if (listedPct == null) return null;
-  if (isH) return Math.min(100, listedPct * scale);
+  if (isHorde(entry)) return Math.min(100, listedPct * hordeRateScaleFor(entry));
   return listedPct;
 }
 
 function timeSlotChances(e) {
-  const scale = state.data.hordeRateScale || 20;
-  const isH = isHorde(e);
   return [
     { key: "morning", icon: "🌅", label: "Morning", raw: e.morning },
     { key: "day", icon: "☀️", label: "Day", raw: e.day },
@@ -715,7 +722,7 @@ function timeSlotChances(e) {
   ]
     .map((s) => {
       const listed = parsePercent(s.raw);
-      const chance = effectiveChance(listed, isH, scale);
+      const chance = effectiveChance(listed, e);
       return { ...s, listed, chance };
     })
     .filter((s) => s.chance != null);
@@ -732,7 +739,7 @@ function scoreEncounter(e, prefer) {
   if (slots.length) {
     avgChance = slots.reduce((sum, s) => sum + s.chance, 0) / slots.length;
   } else {
-    avgChance = effectiveChance(slot.pct, isH, state.data.hordeRateScale || 20) || 0;
+    avgChance = effectiveChance(slot.pct, e) || 0;
   }
 
   // Consistency: penalize spots that swing a lot (e.g. 100/100/50)
