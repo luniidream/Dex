@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dex — PokeMMO Locations</title>
+    <meta
+      name="description"
+      content="PokeMMO location guide: find Pokémon by area, season, and best hunt spots."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">◈</span>
+        <div>
+          <p class="brand-name">Dex</p>
+          <p class="brand-sub">PokeMMO field guide</p>
+        </div>
+      </div>
+
+      <nav class="main-nav" aria-label="Primary">
+        <button type="button" class="nav-link" data-page="pokemon" id="nav-pokemon">Pokémon</button>
+        <button type="button" class="nav-link is-active" data-page="locations" id="nav-locations">Locations</button>
+        <button type="button" class="nav-link" data-page="hunt" id="nav-hunt">Hunt</button>
+      </nav>
+    </header>
+
+    <!-- LOCATIONS -->
+    <main class="shell" id="page-locations">
+      <aside class="panel list-panel">
+        <div class="panel-head">
+          <h1>Locations</h1>
+          <p id="loc-count" class="muted">Loading…</p>
+        </div>
+
+        <label class="search-wrap">
+          <span class="sr-only">Search locations</span>
+          <input id="loc-search" type="search" placeholder="Search area or region…" autocomplete="off" />
+        </label>
+
+        <div class="filter-drawer">
+          <button type="button" class="filter-toggle" data-filter-panel="loc-side-panel" aria-expanded="false">
+            <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
+              <path fill="currentColor" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/>
+            </svg>
+            Filter
+            <span class="filter-badge is-hidden" id="loc-side-badge">0</span>
+          </button>
+          <div class="filter-panel is-collapsed" id="loc-side-panel">
+            <div class="filter-row" id="loc-region-filters" role="group" aria-label="Regions"></div>
+          </div>
+        </div>
+
+        <div class="loc-scroll" id="location-list" role="listbox" aria-label="Locations"></div>
+      </aside>
+
+      <section class="panel detail-panel" aria-live="polite">
+        <div class="empty-state" id="loc-empty">
+          <p class="empty-kicker">Pick a place</p>
+          <h2>See who lives there</h2>
+          <p class="muted">Choose a location to list Pokémon by season, encounter type, and horde size.</p>
+        </div>
+
+        <div class="detail-content is-hidden" id="loc-detail">
+          <header class="detail-head">
+            <p class="region-chip" id="loc-detail-region"></p>
+            <h2 id="loc-detail-name"></h2>
+            <p class="muted" id="loc-detail-meta"></p>
+          </header>
+
+          <div class="filter-drawer">
+            <button type="button" class="filter-toggle" data-filter-panel="loc-detail-panel" aria-expanded="false">
+              <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
+                <path fill="currentColor" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/>
+              </svg>
+              Filter
+              <span class="filter-badge is-hidden" id="loc-detail-badge">0</span>
+            </button>
+            <div class="filter-panel is-collapsed" id="loc-detail-panel">
+              <div class="filter-row" id="loc-season-filters" role="group" aria-label="Seasons"></div>
+              <div class="filter-row" id="loc-mode-filters" role="group" aria-label="Encounter mode"></div>
+              <div class="filter-row" id="loc-method-filters" role="group" aria-label="Methods"></div>
+            </div>
+          </div>
+
+          <div id="loc-groups" class="season-groups"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- POKEMON -->
+    <main class="shell is-hidden" id="page-pokemon">
+      <aside class="panel list-panel">
+        <div class="panel-head">
+          <h1>Pokémon</h1>
+          <p id="poke-count" class="muted">Loading…</p>
+        </div>
+
+        <label class="search-wrap">
+          <span class="sr-only">Search Pokémon</span>
+          <input id="poke-search" type="search" placeholder="Search name or #" autocomplete="off" />
+        </label>
+
+        <div class="filter-drawer">
+          <button type="button" class="filter-toggle" data-filter-panel="poke-side-panel" aria-expanded="false">
+            <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
+              <path fill="currentColor" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/>
+            </svg>
+            Filter
+            <span class="filter-badge is-hidden" id="poke-side-badge">0</span>
+          </button>
+          <div class="filter-panel is-collapsed" id="poke-side-panel">
+            <div class="filter-row" id="poke-mode-filters" role="group" aria-label="Encounter mode"></div>
+            <div class="filter-row" id="poke-method-filters" role="group" aria-label="Methods"></div>
+            <div class="filter-row" id="poke-region-filters" role="group" aria-label="Regions"></div>
+            <div class="filter-row" id="poke-season-filters" role="group" aria-label="Seasons"></div>
+          </div>
+        </div>
+
+        <div class="loc-scroll" id="pokemon-list" role="listbox" aria-label="Pokémon"></div>
+      </aside>
+
+      <section class="panel detail-panel" aria-live="polite">
+        <div class="empty-state" id="poke-empty">
+          <p class="empty-kicker">Pick a Pokémon</p>
+          <h2>See where it appears</h2>
+          <p class="muted">Locations, seasons, single vs horde (3× / 5×), fishing rods, and Sweet Scent rates.</p>
+        </div>
+
+        <div class="detail-content is-hidden" id="poke-detail">
+          <header class="detail-head poke-detail-head">
+            <img id="poke-detail-sprite" alt="" width="96" height="96" />
+            <div>
+              <p class="region-chip" id="poke-detail-id"></p>
+              <h2 id="poke-detail-name"></h2>
+              <p class="muted" id="poke-detail-meta"></p>
+            </div>
+          </header>
+
+          <div id="poke-groups" class="season-groups"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- HUNT -->
+    <main class="shell shell-hunt is-hidden" id="page-hunt">
+      <section class="panel hunt-panel">
+        <div class="panel-head hunt-head">
+          <h1>Best hunt spot</h1>
+          <p class="muted">Enter a Pokémon and your current season — we’ll rank the best places to hunt.</p>
+        </div>
+
+        <form class="hunt-form" id="hunt-form" autocomplete="off">
+          <div class="hunt-fields">
+            <label class="hunt-field">
+              <span class="field-label">Pokémon</span>
+              <input id="hunt-poke-input" type="text" placeholder="e.g. Gible or 443" list="hunt-poke-datalist" required />
+              <datalist id="hunt-poke-datalist"></datalist>
+            </label>
+
+            <div class="hunt-field">
+              <span class="field-label">Season</span>
+              <div class="filter-row hunt-season-row" id="hunt-season-filters" role="group" aria-label="Season"></div>
+              <p class="muted field-hint">Pick <strong>Any season</strong> to find the best season and spot automatically.</p>
+            </div>
+
+            <div class="hunt-field">
+              <span class="field-label">Prefer</span>
+              <div class="filter-row" id="hunt-prefer-filters" role="group" aria-label="Prefer">
+                <button type="button" class="chip is-active" data-prefer="best">Best overall</button>
+                <button type="button" class="chip" data-prefer="horde">Horde / Sweet Scent</button>
+                <button type="button" class="chip" data-prefer="single">Singles only</button>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="hunt-submit">Find best spots</button>
+        </form>
+
+        <div id="hunt-results" class="hunt-results">
+          <div class="empty-state hunt-empty">
+            <p class="empty-kicker">Ready when you are</p>
+            <h2>Pick a target</h2>
+            <p class="muted">We’ll score spots by encounter rate, horde size, and Sweet Scent odds for your season.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- SHINY WARS (hidden route only: #/shinywars) -->
+    <main class="shell shell-sw is-hidden" id="page-shinywars" aria-label="Shiny Wars Hunt Router">
+      <section class="panel sw-panel" id="sw-gate">
+        <div class="sw-gate-inner">
+          <p class="empty-kicker">Restricted</p>
+          <h1>Shiny Wars Hunt Router</h1>
+          <p class="muted">Personal shiny hunt strategy tool for PokeMMO Shiny Wars 2026. Not a leaderboard.</p>
+          <form id="sw-login-form" class="sw-login">
+            <label class="hunt-field">
+              <span class="field-label">Password</span>
+              <input id="sw-password" type="password" autocomplete="current-password" required />
+            </label>
+            <p class="sw-error is-hidden" id="sw-login-error">Wrong password.</p>
+            <p class="sw-error is-hidden" id="sw-load-error"></p>
+            <button type="submit" class="hunt-submit">Unlock</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel sw-panel is-hidden" id="sw-app">
+        <header class="sw-header">
+          <div>
+            <p class="empty-kicker">Shiny Wars 2026</p>
+            <h1>Hunt Router</h1>
+            <p class="muted">Plan targets · avoid duplicate lines · pick seasons · maximize points</p>
+          </div>
+          <div class="sw-season-box">
+            <span class="field-label">Current season</span>
+            <div class="filter-row" id="sw-season-filters"></div>
+            <p class="muted field-hint" id="sw-season-upcoming"></p>
+          </div>
+        </header>
+
+        <div class="sw-layout">
+          <aside class="sw-side">
+            <div class="sw-block">
+              <div class="sw-block-head">
+                <h2>Players</h2>
+                <button type="button" class="chip" id="sw-add-player">+ Add Member</button>
+              </div>
+              <p class="muted field-hint">Optional · up to 30 · default is personal (you)</p>
+              <div id="sw-player-list" class="sw-player-list"></div>
+            </div>
+
+            <div class="sw-block">
+              <div class="sw-block-head">
+                <h2>Completed shinies</h2>
+              </div>
+              <p class="muted field-hint">Log OT shinies already secured (for unique / duplicate checks)</p>
+              <form id="sw-complete-form" class="sw-inline-form">
+                <input id="sw-complete-input" type="text" list="sw-poke-datalist" placeholder="Caught shiny…" />
+                <button type="submit" class="chip">Log</button>
+              </form>
+              <div id="sw-completed-list" class="sw-mini-list"></div>
+            </div>
+          </aside>
+
+          <div class="sw-main">
+            <div class="sw-block">
+              <div class="sw-block-head">
+                <h2>Current targets · <span id="sw-active-name">Luni</span></h2>
+                <button type="button" class="chip" id="sw-add-target">+ Add Pokémon</button>
+              </div>
+
+              <form id="sw-target-form" class="sw-target-form is-hidden">
+                <label class="hunt-field">
+                  <span class="field-label">Pokémon</span>
+                  <input id="sw-target-input" type="text" list="sw-poke-datalist" placeholder="e.g. Beldum" required />
+                </label>
+                <label class="hunt-field">
+                  <span class="field-label">Priority</span>
+                  <select id="sw-target-priority">
+                    <option value="high">High</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+                <label class="hunt-field">
+                  <span class="field-label">Phases (optional)</span>
+                  <input id="sw-target-phases" type="number" min="0" step="1" placeholder="0" />
+                </label>
+                <label class="hunt-field sw-notes-field">
+                  <span class="field-label">Notes</span>
+                  <input id="sw-target-notes" type="text" placeholder="Optional notes" />
+                </label>
+                <button type="submit" class="hunt-submit">Add target</button>
+              </form>
+              <datalist id="sw-poke-datalist"></datalist>
+
+              <div id="sw-warnings" class="sw-warnings"></div>
+              <div id="sw-target-list" class="sw-target-list"></div>
+            </div>
+
+            <div class="sw-block">
+              <div class="sw-block-head">
+                <h2>Recommended hunt order</h2>
+                <button type="button" class="chip" id="sw-refresh-route">Refresh route</button>
+              </div>
+              <div id="sw-route" class="sw-route"></div>
+            </div>
+
+            <div class="sw-block" id="sw-team-block">
+              <div class="sw-block-head">
+                <h2>Team distribution</h2>
+              </div>
+              <div id="sw-team-route" class="sw-route"></div>
+            </div>
+          </div>
+        </div>
+
+        <p class="muted sw-footnote">
+          Scoring based on
+          <a href="https://forums.pokemmo.com/index.php?/topic/198507-pokemmo-shiny-wars-2026/" target="_blank" rel="noopener noreferrer">Shiny Wars 2026 rules</a>
+          · Unique line +8 · Player duplicate line = +1 · Seasons rotate weekly
+        </p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Sprites from
+        <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer">PokéAPI</a>
+        · Encounter logic based on PokeMMO · Data from <code>monsters.json</code>
+      </p>
+    </footer>
+
+    <script src="app.js"></script>
+    <script src="shinywars.js"></script>
+  </body>
+</html>
