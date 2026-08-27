@@ -6,7 +6,6 @@
   <title>Dex | Premium PokeMMO Pokédex</title>
   <meta name="description" content="Advanced PokeMMO spawn tracker, hunt advisor, and Shiny Wars coordinator.">
   
-  <!-- Premium Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
@@ -14,15 +13,16 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Loading State (Visible until JS initializes) -->
   <div id="initial-loader" class="initial-loader">
     <div class="loader-spinner"></div>
     <span class="loader-text">Initializing Dex...</span>
   </div>
 
-  <!-- Main App Shell (Injected by app.js) -->
   <div id="app" class="app-shell hidden"></div>
 
+  <!-- NEW UI RENDERER FIRST -->
+  <script src="ui-renderer.js"></script>
+  <!-- THEN ORIGINAL APP -->
   <script src="app.js"></script>
 </body>
 </html>
