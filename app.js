@@ -294,6 +294,10 @@ function setHash() {
     location.hash = id
       ? `#/hunt/${id}/${encodeURIComponent(season)}`
       : "#/hunt";
+  } else if (state.page === "random") {
+    location.hash = "#/random";
+  } else if (state.page === "altering") {
+    location.hash = "#/altering";
   } else if (state.page === "shinywars") {
     location.hash = "#/shinywars";
   } else {
@@ -322,6 +326,10 @@ function readHash() {
         state.hunt.season = rest[1];
       }
     }
+  } else if (page === "random") {
+    state.page = "random";
+  } else if (page === "altering") {
+    state.page = "altering";
   } else if (page === "shinywars") {
     state.page = "shinywars";
   } else if (page === "locations" || !page) {
@@ -341,14 +349,30 @@ function showPage() {
   $("page-locations").classList.toggle("is-hidden", page !== "locations");
   $("page-pokemon").classList.toggle("is-hidden", page !== "pokemon");
   $("page-hunt").classList.toggle("is-hidden", page !== "hunt");
+  $("page-random")?.classList.toggle("is-hidden", page !== "random");
+  $("page-altering")?.classList.toggle("is-hidden", page !== "altering");
   $("nav-locations")?.classList.toggle("is-active", page === "locations");
   $("nav-pokemon")?.classList.toggle("is-active", page === "pokemon");
   $("nav-hunt")?.classList.toggle("is-active", page === "hunt");
+  $("nav-random")?.classList.toggle("is-active", page === "random");
+  $("nav-altering")?.classList.toggle("is-active", page === "altering");
 
   if (page === "shinywars") {
     window.ShinyWars?.show();
   } else {
     window.ShinyWars?.hide();
+  }
+
+  if (page === "random") {
+    window.RandomHunt?.show();
+  } else {
+    window.RandomHunt?.hide();
+  }
+
+  if (page === "altering") {
+    window.AlteringCave?.show();
+  } else {
+    window.AlteringCave?.hide();
   }
 }
 
@@ -1099,6 +1123,14 @@ function refreshFilters() {
 function refresh() {
   if (state.page === "shinywars") {
     window.ShinyWars?.show();
+    return;
+  }
+  if (state.page === "random") {
+    window.RandomHunt?.show();
+    return;
+  }
+  if (state.page === "altering") {
+    window.AlteringCave?.show();
     return;
   }
   refreshFilters();
