@@ -34,6 +34,7 @@
         <button type="button" class="nav-link" data-page="hunt" id="nav-hunt">Hunt</button>
         <button type="button" class="nav-link" data-page="random" id="nav-random">Random</button>
         <button type="button" class="nav-link" data-page="altering" id="nav-altering">Altering Cave</button>
+        <button type="button" class="nav-link" data-page="teamfate" id="nav-teamfate">Team Fate</button>
       </nav>
     </header>
 
@@ -284,6 +285,58 @@
       </section>
     </main>
 
+    <!-- TEAM FATE -->
+    <main class="shell is-hidden" id="page-teamfate" aria-label="Team Fate Shiny Wars">
+      <aside class="panel list-panel">
+        <div class="panel-head">
+          <h1>Team Fate</h1>
+          <p class="muted">Shiny Wars 2026 · Moonlight Route Tracker</p>
+        </div>
+
+        <label class="search-wrap">
+          <span class="sr-only">Search routes</span>
+          <input id="tf-search" type="search" placeholder="Search location or Pokémon…" autocomplete="off" />
+        </label>
+
+        <div class="filter-drawer">
+          <button type="button" class="filter-toggle" data-filter-panel="tf-side-panel" aria-expanded="false">
+            <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
+              <path fill="currentColor" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/>
+            </svg>
+            Filter
+            <span class="filter-badge is-hidden" id="tf-side-badge">0</span>
+          </button>
+          <div class="filter-panel is-collapsed" id="tf-side-panel">
+            <div class="filter-row" id="tf-region-filters" role="group" aria-label="Regions"></div>
+            <div class="filter-row" id="tf-time-filters" role="group" aria-label="Time of day"></div>
+          </div>
+        </div>
+
+        <div class="loc-scroll" id="tf-route-list" role="listbox" aria-label="Routes"></div>
+      </aside>
+
+      <section class="panel detail-panel" aria-live="polite">
+        <div class="empty-state" id="tf-empty">
+          <p class="empty-kicker">Team Fate</p>
+          <h2>Moonlight Route Tracker</h2>
+          <p class="muted">Select a hunt route to view encounter details, horde rates, and optimal times.</p>
+        </div>
+
+        <div class="detail-content is-hidden" id="tf-detail">
+          <header class="detail-head">
+            <div class="tf-moon"></div>
+            <div>
+              <p class="region-chip" id="tf-detail-region"></p>
+              <h2 id="tf-detail-name"></h2>
+              <p class="muted" id="tf-detail-meta"></p>
+            </div>
+          </header>
+
+          <div id="tf-stats" class="season-groups"></div>
+        </div>
+      </section>
+    </main>
+
     <!-- SHINY WARS (hidden route only: #/shinywars) -->
     <main class="shell shell-sw is-hidden" id="page-shinywars" aria-label="Shiny Wars Hunt Router">
       <section class="panel sw-panel" id="sw-gate">
@@ -414,5 +467,6 @@
     <script src="random-hunt.js"></script>
     <script src="altering-cave.js"></script>
     <script src="shinywars.js"></script>
+    <script src="team-fate.js"></script>
   </body>
 </html>

@@ -851,6 +851,34 @@ body {
   color: var(--warm);
 }
 
+/* Team Fate Moon Icon */
+.tf-moon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f5fbff, #9ed2ff);
+  box-shadow: 0 0 35px rgba(132, 203, 255, 0.35);
+  position: relative;
+  margin-right: 1rem;
+  flex-shrink: 0;
+}
+
+.tf-moon:after {
+  content: "";
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--bg-elev);
+  left: 14px;
+  top: -6px;
+}
+
+.detail-head .tf-moon {
+  display: inline-block;
+  vertical-align: middle;
+}
+
 @keyframes rise {
   from {
     opacity: 0;
