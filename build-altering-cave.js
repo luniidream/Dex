@@ -67,11 +67,27 @@ function parseRows(html) {
   });
 }
 
-function normalizeName(name) {
+function displayMonName(name) {
   return String(name || "")
-    .replace(/\s*1%\s*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .split(/([\s.\-]+)/)
+    .map((part) => {
+      if (!part || /^[\s.\-]+$/.test(part)) return part;
+      const lower = part.toLowerCase();
+      if (lower === "mr") return "Mr";
+      if (lower === "f" || lower === "m") return part.toUpperCase();
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join("");
+}
+
+function normalizeName(name) {
+  return displayMonName(
+    String(name || "")
+      .replace(/\s*1%\s*$/i, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 function parsePokemonCell(name, tierRaw) {

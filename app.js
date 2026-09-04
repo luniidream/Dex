@@ -238,48 +238,23 @@ function modeBadge(e) {
   return `<span class="badge ${cls}">${hordeLabel(e)}</span>`;
 }
 
-function renderChips(container, items, active, dataAttr) {
-  if (!container) return;
-  container.innerHTML = items
+function fillSelect(el, items, active) {
+  if (!el) return;
+  const opts = items
     .map((item) => {
       const id = typeof item === "string" ? item : item.id;
       const label = typeof item === "string" ? item : item.label;
-      const on = active === id ? " is-active" : "";
-      return `<button type="button" class="chip${on}" data-${dataAttr}="${id}">${label}</button>`;
+      const sel = String(active) === String(id) ? " selected" : "";
+      return `<option value="${escapeHtml(String(id))}"${sel}>${escapeHtml(label)}</option>`;
     })
     .join("");
+  el.innerHTML = opts;
 }
 
-function activeFilterCount(scope) {
-  let n = 0;
-  if (scope === "loc-side") {
-    if (state.loc.region !== "All") n++;
-  } else if (scope === "loc-detail") {
-    if (state.loc.season !== "All") n++;
-    if (state.loc.mode !== "all") n++;
-    if (state.loc.method !== "all") n++;
-  } else if (scope === "poke-side") {
-    if (state.poke.region !== "All") n++;
-    if (state.poke.season !== "All") n++;
-    if (state.poke.mode !== "all") n++;
-    if (state.poke.method !== "all") n++;
-  }
-  return n;
-}
-
-function updateFilterBadges() {
-  const pairs = [
-    ["loc-side-badge", "loc-side"],
-    ["loc-detail-badge", "loc-detail"],
-    ["poke-side-badge", "poke-side"],
-  ];
-  for (const [id, scope] of pairs) {
-    const el = $(id);
-    if (!el) continue;
-    const n = activeFilterCount(scope);
-    el.textContent = String(n);
-    el.classList.toggle("is-hidden", n === 0);
-  }
+function bindSelect(id, onChange) {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener("change", () => onChange(el.value));
 }
 
 /* ---------- Routing ---------- */
@@ -958,20 +933,15 @@ function fillHuntDatalist() {
 
 function renderHuntSeasons() {
   const seasons = [
-    { id: "Any", label: "✨ Any season" },
+    { id: "Any", label: "Any season" },
     ...["Spring", "Summer", "Autumn", "Winter"].map((s) => ({
       id: s,
       label: `${SEASON_EMOJI[s] || ""} ${s}`,
     })),
   ];
-  renderChips($("hunt-season-filters"), seasons, state.hunt.season, "hunt-season");
-
-  const preferEl = $("hunt-prefer-filters");
-  if (preferEl) {
-    [...preferEl.querySelectorAll("[data-prefer]")].forEach((btn) => {
-      btn.classList.toggle("is-active", btn.dataset.prefer === state.hunt.prefer);
-    });
-  }
+  fillSelect($("hunt-season-select"), seasons, state.hunt.season);
+  const prefer = $("hunt-prefer-select");
+  if (prefer) prefer.value = state.hunt.prefer;
 }
 
 function renderHuntResults() {
@@ -981,9 +951,8 @@ function renderHuntResults() {
   if (!poke) {
     box.innerHTML = `
       <div class="empty-state hunt-empty">
-        <p class="empty-kicker">Ready when you are</p>
-        <h2>Pick a target</h2>
-        <p class="muted">Skip season with <strong>Any</strong> to learn the best season and spot, plus who shares the horde/single pool.</p>
+        <p class="empty-kicker">Hunt</p>
+        <h2>Enter a Pokémon</h2>
       </div>`;
     return;
   }
@@ -1083,7 +1052,7 @@ function runHuntFromForm() {
       <div class="empty-state hunt-empty">
         <p class="empty-kicker">Not found</p>
         <h2>Unknown Pokémon</h2>
-        <p class="muted">Try a name like <code>Gible</code> or a number like <code>443</code>.</p>
+        <p class="muted">Try a name or Pokédex number.</p>
       </div>`;
     return;
   }
@@ -1097,7 +1066,10 @@ function runHuntFromForm() {
 /* ---------- Refresh & events ---------- */
 
 function refreshFilters() {
-  const regions = ["All", ...state.data.regions];
+  const regions = [
+    { id: "All", label: "All regions" },
+    ...state.data.regions.map((r) => ({ id: r, label: r })),
+  ];
   const seasons = [
     { id: "All", label: "All seasons" },
     ...state.data.seasons.map((s) => ({
@@ -1106,18 +1078,17 @@ function refreshFilters() {
     })),
   ];
 
-  renderChips($("loc-region-filters"), regions, state.loc.region, "region");
-  renderChips($("loc-season-filters"), seasons, state.loc.season, "season");
-  renderChips($("loc-mode-filters"), MODE_FILTERS, state.loc.mode, "mode");
-  renderChips($("loc-method-filters"), METHOD_FILTERS, state.loc.method, "method");
+  fillSelect($("loc-region-select"), regions, state.loc.region);
+  fillSelect($("loc-season-select"), seasons, state.loc.season);
+  fillSelect($("loc-mode-select"), MODE_FILTERS, state.loc.mode);
+  fillSelect($("loc-method-select"), METHOD_FILTERS, state.loc.method);
 
-  renderChips($("poke-region-filters"), regions, state.poke.region, "region");
-  renderChips($("poke-season-filters"), seasons, state.poke.season, "season");
-  renderChips($("poke-mode-filters"), MODE_FILTERS, state.poke.mode, "mode");
-  renderChips($("poke-method-filters"), METHOD_FILTERS, state.poke.method, "method");
+  fillSelect($("poke-region-select"), regions, state.poke.region);
+  fillSelect($("poke-season-select"), seasons, state.poke.season);
+  fillSelect($("poke-mode-select"), MODE_FILTERS, state.poke.mode);
+  fillSelect($("poke-method-select"), METHOD_FILTERS, state.poke.method);
 
   renderHuntSeasons();
-  updateFilterBadges();
 }
 
 function refresh() {
@@ -1151,41 +1122,10 @@ function refresh() {
   }
 }
 
-function bindChipGroup(el, onPick) {
-  if (!el) return;
-  el.addEventListener("click", (e) => {
-    const btn = e.target.closest(
-      "[data-region],[data-season],[data-mode],[data-method],[data-hunt-season],[data-prefer]"
-    );
-    if (!btn || !el.contains(btn)) return;
-    if (btn.dataset.region != null) onPick("region", btn.dataset.region);
-    else if (btn.dataset.season != null) onPick("season", btn.dataset.season);
-    else if (btn.dataset.mode != null) onPick("mode", btn.dataset.mode);
-    else if (btn.dataset.method != null) onPick("method", btn.dataset.method);
-    else if (btn.dataset.huntSeason != null) onPick("hunt-season", btn.dataset.huntSeason);
-    else if (btn.dataset.prefer != null) onPick("prefer", btn.dataset.prefer);
-  });
-}
-
-function bindFilterToggles() {
-  document.querySelectorAll("[data-filter-panel]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const panel = $(btn.dataset.filterPanel);
-      if (!panel) return;
-      panel.classList.toggle("is-collapsed");
-      const collapsed = panel.classList.contains("is-collapsed");
-      btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-      btn.classList.toggle("is-open", !collapsed);
-    });
-  });
-}
-
 function bindEvents() {
   document.querySelectorAll("[data-page]").forEach((btn) => {
     btn.addEventListener("click", () => goPage(btn.dataset.page));
   });
-
-  bindFilterToggles();
 
   $("loc-search").addEventListener("input", (e) => {
     state.loc.query = e.target.value;
@@ -1197,52 +1137,50 @@ function bindEvents() {
     renderPokemonList();
   });
 
-  bindChipGroup($("loc-region-filters"), (_k, v) => {
+  bindSelect("loc-region-select", (v) => {
     state.loc.region = v;
     refresh();
   });
-  bindChipGroup($("loc-season-filters"), (_k, v) => {
+  bindSelect("loc-season-select", (v) => {
     state.loc.season = v;
     refresh();
   });
-  bindChipGroup($("loc-mode-filters"), (_k, v) => {
+  bindSelect("loc-mode-select", (v) => {
     state.loc.mode = v;
     refresh();
   });
-  bindChipGroup($("loc-method-filters"), (_k, v) => {
+  bindSelect("loc-method-select", (v) => {
     state.loc.method = v;
     refresh();
   });
 
-  bindChipGroup($("poke-region-filters"), (_k, v) => {
+  bindSelect("poke-region-select", (v) => {
     state.poke.region = v;
     refresh();
   });
-  bindChipGroup($("poke-season-filters"), (_k, v) => {
+  bindSelect("poke-season-select", (v) => {
     state.poke.season = v;
     refresh();
   });
-  bindChipGroup($("poke-mode-filters"), (_k, v) => {
+  bindSelect("poke-mode-select", (v) => {
     state.poke.mode = v;
     refresh();
   });
-  bindChipGroup($("poke-method-filters"), (_k, v) => {
+  bindSelect("poke-method-select", (v) => {
     state.poke.method = v;
     refresh();
   });
 
-  bindChipGroup($("hunt-season-filters"), (_k, v) => {
+  bindSelect("hunt-season-select", (v) => {
     state.hunt.season = v;
-    renderHuntSeasons();
     if (state.hunt.selectedId) {
       setHash();
       renderHuntResults();
     }
   });
 
-  bindChipGroup($("hunt-prefer-filters"), (_k, v) => {
+  bindSelect("hunt-prefer-select", (v) => {
     state.hunt.prefer = v;
-    renderHuntSeasons();
     if (state.hunt.selectedId) renderHuntResults();
   });
 
@@ -1312,16 +1250,16 @@ function bindEvents() {
 async function init() {
   bindEvents();
   window.dexReady = (async () => {
-    const [locRes, swRes] = await Promise.all([
-      fetch("locations-data.json"),
-      fetch("shinywars-meta.json"),
-    ]);
+    const locRes = await fetch("locations-data.json");
     if (!locRes.ok) throw new Error(`locations-data.json HTTP ${locRes.status}`);
     state.data = await locRes.json();
     buildPokemonIndex();
 
-    if (swRes.ok) {
-      window.ShinyWarsMeta = await swRes.json();
+    try {
+      const swRes = await fetch("shinywars-meta.json");
+      if (swRes.ok) window.ShinyWarsMeta = await swRes.json();
+    } catch {
+      /* optional */
     }
 
     if (!state.data.pokemon) {

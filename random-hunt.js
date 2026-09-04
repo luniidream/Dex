@@ -188,6 +188,159 @@
     return best;
   }
 
+  const paletteCache = new Map();
+  const DEFAULT_PALETTE = {
+    accent: "#79b9ff",
+    accentSoft: "#cce9ff",
+    glow: "rgba(101, 174, 255, 0.28)",
+  };
+
+  function rgb(r, g, b) {
+    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+  }
+
+  function mixToward(r, g, b, tr, tg, tb, t) {
+    return {
+      r: r + (tr - r) * t,
+      g: g + (tg - g) * t,
+      b: b + (tb - b) * t,
+    };
+  }
+
+  function saturation(r, g, b) {
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return max === 0 ? 0 : (max - min) / max;
+  }
+
+  function luminance(r, g, b) {
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  function loadSprite(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(url));
+      img.src = url;
+    });
+  }
+
+  function samplePalette(img) {
+    const tw = 64;
+    const th = 64;
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, tw, th);
+    let data;
+    try {
+      data = ctx.getImageData(0, 0, tw, th).data;
+    } catch {
+      return null;
+    }
+
+    const buckets = new Map();
+    for (let i = 0; i < data.length; i += 4) {
+      const a = data[i + 3];
+      if (a < 140) continue;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const lum = luminance(r, g, b);
+      if (lum < 18 || lum > 248) continue;
+      const sat = saturation(r, g, b);
+      const qr = r >> 4;
+      const qg = g >> 4;
+      const qb = b >> 4;
+      const key = (qr << 8) | (qg << 4) | qb;
+      const weight =
+        (a / 255) *
+        (0.4 + sat * 1.6) *
+        (lum > 32 && lum < 230 ? 1.2 : 0.65);
+      const prev = buckets.get(key) || { r: 0, g: 0, b: 0, w: 0, sat: 0 };
+      prev.r += r * weight;
+      prev.g += g * weight;
+      prev.b += b * weight;
+      prev.w += weight;
+      prev.sat += sat * weight;
+      buckets.set(key, prev);
+    }
+
+    const ranked = [...buckets.values()]
+      .filter((x) => x.w > 0)
+      .map((x) => ({
+        r: x.r / x.w,
+        g: x.g / x.w,
+        b: x.b / x.w,
+        w: x.w,
+        sat: x.sat / x.w,
+      }))
+      .sort((a, b) => b.w - a.w);
+
+    if (!ranked.length) return null;
+
+    const top = ranked.slice(0, 8);
+    top.sort((a, b) => b.w * (0.55 + a.sat) - a.w * (0.55 + b.sat));
+    let accent = top[0];
+    // Prefer a more saturated bucket if the winner is nearly gray
+    if (accent.sat < 0.18) {
+      const colorful = ranked.find((c) => c.sat > 0.28 && c.w > ranked[0].w * 0.12);
+      if (colorful) accent = colorful;
+    }
+
+    const lifted = mixToward(accent.r, accent.g, accent.b, 255, 255, 255, 0.28);
+    const glow = mixToward(accent.r, accent.g, accent.b, 120, 180, 255, 0.12);
+    return {
+      accent: rgb(accent.r, accent.g, accent.b),
+      accentSoft: rgb(lifted.r, lifted.g, lifted.b),
+      glow: `rgba(${Math.round(glow.r)}, ${Math.round(glow.g)}, ${Math.round(glow.b)}, 0.38)`,
+    };
+  }
+
+  async function getShinyPalette(id) {
+    if (paletteCache.has(id)) return paletteCache.get(id);
+    const urls = [
+      `${SHINY_ANIM}/${id}.gif`,
+      `${SPRITE}/versions/generation-v/black-white/shiny/${id}.png`,
+      `${SHINY_STATIC}/${id}.png`,
+      `${SPRITE}/other/home/shiny/${id}.png`,
+    ];
+    for (const url of urls) {
+      try {
+        const img = await loadSprite(url);
+        const palette = samplePalette(img);
+        if (palette) {
+          paletteCache.set(id, palette);
+          return palette;
+        }
+      } catch {
+        /* try next source */
+      }
+    }
+    paletteCache.set(id, DEFAULT_PALETTE);
+    return DEFAULT_PALETTE;
+  }
+
+  function applyShinyTheme(palette) {
+    const page = $("page-random");
+    if (!page) return;
+    if (!palette) {
+      page.classList.remove("is-shiny-themed");
+      page.style.removeProperty("--rh-accent");
+      page.style.removeProperty("--rh-accent-2");
+      page.style.removeProperty("--rh-glow");
+      return;
+    }
+    page.style.setProperty("--rh-accent", palette.accent);
+    page.style.setProperty("--rh-accent-2", palette.accentSoft);
+    page.style.setProperty("--rh-glow", palette.glow);
+    page.classList.add("is-shiny-themed");
+  }
+
   function shinyImg(id, name) {
     return `
       <img
@@ -196,7 +349,8 @@
         alt="Shiny ${escapeHtml(name)}"
         width="120"
         height="120"
-        onerror="this.onerror=null;this.src='${SHINY_STATIC}/${id}.png';this.classList.add('is-static');"
+        crossorigin="anonymous"
+        onerror="this.onerror=null;this.removeAttribute('crossorigin');this.src='${SHINY_STATIC}/${id}.png';this.classList.add('is-static');"
       />`;
   }
 
@@ -213,7 +367,7 @@
     regionEl.innerHTML = regions
       .map(
         (r) =>
-          `<option value="${escapeHtml(r)}"${filters.region === r ? " selected" : ""}>${escapeHtml(r)}</option>`
+          `<option value="${escapeHtml(r)}"${filters.region === r ? " selected" : ""}>${escapeHtml(r === "All" ? "All regions" : r)}</option>`
       )
       .join("");
 
@@ -235,17 +389,23 @@
 
     $("rh-exclusive").checked = filters.seasonExclusive;
 
-    $("rh-encounter").innerHTML = ENCOUNTER_OPTIONS.map(
-      (o) =>
-        `<button type="button" class="chip${filters.encounter === o.id ? " is-active" : ""}" data-rh-encounter="${o.id}">${o.label}</button>`
-    ).join("");
-
-    $("rh-horde").innerHTML = HORDE_OPTIONS.map(
-      (o) =>
-        `<button type="button" class="chip${filters.hordeSize === o.id ? " is-active" : ""}" data-rh-horde="${o.id}">${o.label}</button>`
-    ).join("");
+    fillSelect("rh-encounter", ENCOUNTER_OPTIONS, filters.encounter);
+    fillSelect("rh-horde", HORDE_OPTIONS, filters.hordeSize);
 
     updatePoolHint();
+  }
+
+  function fillSelect(id, items, active) {
+    const el = $(id);
+    if (!el) return;
+    el.innerHTML = items
+      .map((item) => {
+        const value = typeof item === "string" ? item : item.id;
+        const label = typeof item === "string" ? item : item.label;
+        const sel = String(active) === String(value) ? " selected" : "";
+        return `<option value="${escapeHtml(String(value))}"${sel}>${escapeHtml(label)}</option>`;
+      })
+      .join("");
   }
 
   function updatePoolHint() {
@@ -260,21 +420,21 @@
   }
 
   function renderEmpty(message) {
+    applyShinyTheme(null);
     $("rh-result").innerHTML = `
       <div class="rh-empty">
         <p class="empty-kicker">No match</p>
         <h2>${escapeHtml(message)}</h2>
-        <p class="muted">Try loosening a filter — season exclusive + rare color combos can wipe the pool.</p>
       </div>`;
   }
 
-  function renderResult(candidate, { animate } = { animate: true }) {
+  function renderResult(candidate, { animate, palette } = { animate: true }) {
     const enc = pickRepresentative(candidate);
     const regions = [...new Set(candidate.encounters.map((e) => e.region))];
-    const seasons = [...new Set(candidate.encounters.map((e) => e.season))];
 
     lastResult = candidate;
     lastPoolSize = buildPool().length;
+    applyShinyTheme(palette || DEFAULT_PALETTE);
 
     const metaBits = [
       `#${String(candidate.id).padStart(3, "0")}`,
@@ -297,7 +457,7 @@
     $("rh-result").innerHTML = `
       <article class="rh-card${animate ? " rh-reveal" : ""}" aria-live="polite">
         <div class="rh-sparkle" aria-hidden="true"></div>
-        <p class="rh-card-kicker">Your next shiny hunt</p>
+        <p class="rh-card-kicker">Shiny hunt</p>
         <div class="rh-sprite-wrap">
           ${shinyImg(candidate.id, candidate.name)}
         </div>
@@ -305,18 +465,21 @@
         <p class="rh-meta">${metaBits.map(escapeHtml).join(" · ")}</p>
         <div class="rh-tags">${tags.join("")}</div>
         <p class="rh-spot muted">
-          Example spot: <button type="button" class="rh-link" data-rh-goto-loc="${encodeURIComponent(enc.locationKey)}">${escapeHtml(enc.location)}</button>
+          <button type="button" class="rh-link" data-rh-goto-loc="${encodeURIComponent(enc.locationKey)}">${escapeHtml(enc.location)}</button>
           · ${escapeHtml(enc.region)}
         </p>
-        <p class="rh-pool muted">${lastPoolSize} in pool · ${candidate.encounters.length} matching encounter${candidate.encounters.length === 1 ? "" : "s"} · seasons: ${seasons.map(escapeHtml).join(", ")}</p>
+        <p class="rh-pool muted">${lastPoolSize} in pool · ${candidate.encounters.length} matching encounter${candidate.encounters.length === 1 ? "" : "s"}</p>
         <div class="rh-card-actions">
           <button type="button" class="hunt-submit rh-reroll" id="rh-reroll">Reroll</button>
-          <button type="button" class="chip" data-rh-goto-poke="${candidate.id}">Open in Dex</button>
+          <button type="button" class="nav-link" data-rh-goto-poke="${candidate.id}">Open in Dex</button>
         </div>
       </article>`;
   }
 
-  function generate() {
+  let genToken = 0;
+
+  async function generate() {
+    const token = ++genToken;
     const pool = buildPool();
     lastPoolSize = pool.length;
     if (!pool.length) {
@@ -324,14 +487,24 @@
       renderEmpty("Nothing fits that combination.");
       return;
     }
-    // Avoid immediate duplicate when possible
     let pick = pool[Math.floor(Math.random() * pool.length)];
     if (pool.length > 1 && lastResult && pick.id === lastResult.id) {
       pick = pool.filter((p) => p.id !== lastResult.id)[
         Math.floor(Math.random() * (pool.length - 1))
       ];
     }
-    renderResult(pick, { animate: true });
+    const palette = await getShinyPalette(pick.id);
+    if (token !== genToken) return;
+    renderResult(pick, { animate: true, palette });
+  }
+
+  function readyEmpty() {
+    applyShinyTheme(null);
+    $("rh-result").innerHTML = `
+      <div class="rh-empty rh-ready">
+        <p class="empty-kicker">Random</p>
+        <h2>Generate a hunt</h2>
+      </div>`;
   }
 
   function resetFilters() {
@@ -343,12 +516,7 @@
     filters.hordeSize = "any";
     lastResult = null;
     renderFilters();
-    $("rh-result").innerHTML = `
-      <div class="rh-empty rh-ready">
-        <p class="empty-kicker">Ready</p>
-        <h2>Roll a shiny target</h2>
-        <p class="muted">Set filters if you want — or leave them open and see what the cave (and grass) give you.</p>
-      </div>`;
+    readyEmpty();
   }
 
   function bind() {
@@ -362,24 +530,14 @@
       if (t.id === "rh-region") filters.region = t.value;
       else if (t.id === "rh-color") filters.color = t.value;
       else if (t.id === "rh-season") filters.season = t.value;
+      else if (t.id === "rh-encounter") filters.encounter = t.value;
+      else if (t.id === "rh-horde") filters.hordeSize = t.value;
       else if (t.id === "rh-exclusive") filters.seasonExclusive = t.checked;
       else return;
       updatePoolHint();
     });
 
     root.addEventListener("click", (e) => {
-      const encBtn = e.target.closest("[data-rh-encounter]");
-      if (encBtn) {
-        filters.encounter = encBtn.dataset.rhEncounter;
-        renderFilters();
-        return;
-      }
-      const hordeBtn = e.target.closest("[data-rh-horde]");
-      if (hordeBtn) {
-        filters.hordeSize = hordeBtn.dataset.rhHorde;
-        renderFilters();
-        return;
-      }
       if (e.target.closest("#rh-generate") || e.target.closest("#rh-reroll")) {
         generate();
         return;
@@ -420,14 +578,7 @@
     $("page-random")?.classList.remove("is-hidden");
     bind();
     renderFilters();
-    if (!lastResult) {
-      $("rh-result").innerHTML = `
-        <div class="rh-empty rh-ready">
-          <p class="empty-kicker">Ready</p>
-          <h2>Roll a shiny target</h2>
-          <p class="muted">Set filters if you want — or leave them open and see what you get.</p>
-        </div>`;
-    }
+    if (!lastResult) readyEmpty();
   }
 
   function hide() {

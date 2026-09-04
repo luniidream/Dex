@@ -401,17 +401,18 @@
   }
 
   function renderSeasons() {
-    const box = $("sw-season-filters");
+    const box = $("sw-season-select");
+    if (!box) return;
     box.innerHTML = SEASON_ORDER.map((s) => {
-      const on = store.currentSeason === s ? " is-active" : "";
-      return `<button type="button" class="chip${on}" data-sw-season="${s}">${SEASON_EMOJI[s] || ""} ${s}</button>`;
+      const sel = store.currentSeason === s ? " selected" : "";
+      return `<option value="${s}"${sel}>${SEASON_EMOJI[s] || ""} ${s}</option>`;
     }).join("");
 
     const up = upcomingSeasons(store.currentSeason);
-    $("sw-season-upcoming").textContent = `Upcoming: ${up
+    $("sw-season-upcoming").textContent = up
       .slice(1)
       .map((s) => `${SEASON_EMOJI[s] || ""} ${s}`)
-      .join(" → ")} (weekly during SW)`;
+      .join(" → ");
   }
 
   function renderPlayers() {
@@ -662,9 +663,7 @@
       })
       .join("");
 
-    box.innerHTML = `
-      <p class="muted">Goal: one hunter per evolution line when possible, so the team banks more unique +8 bonuses.</p>
-      ${suggestions}`;
+    box.innerHTML = suggestions;
   }
 
   function renderAll() {
@@ -743,10 +742,8 @@
       }
     });
 
-    $("sw-season-filters")?.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-sw-season]");
-      if (!btn) return;
-      store.currentSeason = btn.dataset.swSeason;
+    $("sw-season-select")?.addEventListener("change", (e) => {
+      store.currentSeason = e.target.value;
       saveStore();
       renderAll();
     });

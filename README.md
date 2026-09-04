@@ -10,7 +10,7 @@ Static site for **where Pokémon appear** in PokeMMO: locations, seasons, single
 - Filters: **Single / Any Horde / 3× / 5×**, Grass, Cave, Water, Fishing rods, Lure, Special, season, region
 - **Sweet Scent / Honey** rate helper: horde entries show interpreted horde odds, while single encounters show listed single odds.
 - **Random** — roll a random shiny-hunt target with region / color / season / encounter filters (shiny sprites)
-- **Altering Cave** — live classic 7-cycle rotation tracker (UTC, Synergy-compatible) + Team Méw type pools
+- **Altering Cave** — live 7-rotation cave tracker (6-hour UTC swaps) plus a separate type-pool list that is not tied to the countdown
 
 ## Run locally
 
@@ -48,6 +48,7 @@ Requires the extracted ZIP at `c:\Users\leuls\Downloads\AlteringCaveData_extract
 ## Host for free
 
 Upload: `index.html`, `styles.css`, `app.js`, `random-hunt.js`, `altering-cave.js`, `shinywars.js`, `locations-data.json`, `shinywars-meta.json`, `altering-cave-data.json`, `pokemon-colors.json`  
+Do not upload `team-fate.js` (removed).  
 (Netlify Drop, Cloudflare Pages, GitHub Pages, surge.sh — no backend.)
 
 You do **not** need to upload `monsters.json` unless regenerating data later.

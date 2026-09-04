@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Outfit:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
@@ -21,20 +21,17 @@
 
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true">◈</span>
-        <div>
-          <p class="brand-name">Dex</p>
-          <p class="brand-sub">PokeMMO field guide</p>
-        </div>
+        <span class="brand-mark brand-moon" aria-hidden="true"></span>
+        <h1 class="brand-name">Dex</h1>
+        <p class="brand-sub">Moonlight field guide</p>
       </div>
 
       <nav class="main-nav" aria-label="Primary">
-        <button type="button" class="nav-link" data-page="pokemon" id="nav-pokemon">Pokémon</button>
         <button type="button" class="nav-link is-active" data-page="locations" id="nav-locations">Locations</button>
+        <button type="button" class="nav-link" data-page="pokemon" id="nav-pokemon">Pokémon</button>
         <button type="button" class="nav-link" data-page="hunt" id="nav-hunt">Hunt</button>
         <button type="button" class="nav-link" data-page="random" id="nav-random">Random</button>
         <button type="button" class="nav-link" data-page="altering" id="nav-altering">Altering Cave</button>
-        <button type="button" class="nav-link" data-page="teamfate" id="nav-teamfate">Team Fate</button>
       </nav>
     </header>
 
@@ -46,22 +43,15 @@
           <p id="loc-count" class="muted">Loading…</p>
         </div>
 
-        <label class="search-wrap">
-          <span class="sr-only">Search locations</span>
-          <input id="loc-search" type="search" placeholder="Search area or region…" autocomplete="off" />
-        </label>
-
-        <div class="filter-drawer">
-          <button type="button" class="filter-toggle" data-filter-panel="loc-side-panel" aria-expanded="false">
-            <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
-              <path fill="currentColor" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/>
-            </svg>
-            Filter
-            <span class="filter-badge is-hidden" id="loc-side-badge">0</span>
-          </button>
-          <div class="filter-panel is-collapsed" id="loc-side-panel">
-            <div class="filter-row" id="loc-region-filters" role="group" aria-label="Regions"></div>
-          </div>
+        <div class="toolbar">
+          <label class="search-wrap">
+            <span class="sr-only">Search locations</span>
+            <input id="loc-search" class="search" type="search" placeholder="Search area or region…" autocomplete="off" />
+          </label>
+          <label class="filter-select">
+            <span class="sr-only">Region</span>
+            <select id="loc-region-select" class="dex-select" aria-label="Region"></select>
+          </label>
         </div>
 
         <div class="loc-scroll" id="location-list" role="listbox" aria-label="Locations"></div>
@@ -69,9 +59,8 @@
 
       <section class="panel detail-panel" aria-live="polite">
         <div class="empty-state" id="loc-empty">
-          <p class="empty-kicker">Pick a place</p>
-          <h2>See who lives there</h2>
-          <p class="muted">Choose a location to list Pokémon by season, encounter type, and horde size.</p>
+          <p class="empty-kicker">Locations</p>
+          <h2>Select a location</h2>
         </div>
 
         <div class="detail-content is-hidden" id="loc-detail">
@@ -81,19 +70,19 @@
             <p class="muted" id="loc-detail-meta"></p>
           </header>
 
-          <div class="filter-drawer">
-            <button type="button" class="filter-toggle" data-filter-panel="loc-detail-panel" aria-expanded="false">
-              <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
-                <path fill="currentColor" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/>
-              </svg>
-              Filter
-              <span class="filter-badge is-hidden" id="loc-detail-badge">0</span>
-            </button>
-            <div class="filter-panel is-collapsed" id="loc-detail-panel">
-              <div class="filter-row" id="loc-season-filters" role="group" aria-label="Seasons"></div>
-              <div class="filter-row" id="loc-mode-filters" role="group" aria-label="Encounter mode"></div>
-              <div class="filter-row" id="loc-method-filters" role="group" aria-label="Methods"></div>
-            </div>
+          <div class="toolbar toolbar-detail">
+            <label class="filter-select">
+              <span class="sr-only">Season</span>
+              <select id="loc-season-select" class="dex-select" aria-label="Season"></select>
+            </label>
+            <label class="filter-select">
+              <span class="sr-only">Encounter</span>
+              <select id="loc-mode-select" class="dex-select" aria-label="Encounter"></select>
+            </label>
+            <label class="filter-select">
+              <span class="sr-only">Method</span>
+              <select id="loc-method-select" class="dex-select" aria-label="Method"></select>
+            </label>
           </div>
 
           <div id="loc-groups" class="season-groups"></div>
@@ -109,24 +98,28 @@
           <p id="poke-count" class="muted">Loading…</p>
         </div>
 
-        <label class="search-wrap">
-          <span class="sr-only">Search Pokémon</span>
-          <input id="poke-search" type="search" placeholder="Search name or #" autocomplete="off" />
-        </label>
-
-        <div class="filter-drawer">
-          <button type="button" class="filter-toggle" data-filter-panel="poke-side-panel" aria-expanded="false">
-            <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
-              <path fill="currentColor" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/>
-            </svg>
-            Filter
-            <span class="filter-badge is-hidden" id="poke-side-badge">0</span>
-          </button>
-          <div class="filter-panel is-collapsed" id="poke-side-panel">
-            <div class="filter-row" id="poke-mode-filters" role="group" aria-label="Encounter mode"></div>
-            <div class="filter-row" id="poke-method-filters" role="group" aria-label="Methods"></div>
-            <div class="filter-row" id="poke-region-filters" role="group" aria-label="Regions"></div>
-            <div class="filter-row" id="poke-season-filters" role="group" aria-label="Seasons"></div>
+        <div class="toolbar toolbar-stack">
+          <label class="search-wrap">
+            <span class="sr-only">Search Pokémon</span>
+            <input id="poke-search" class="search" type="search" placeholder="Search name or #" autocomplete="off" />
+          </label>
+          <div class="toolbar-filters">
+            <label class="filter-select">
+              <span class="sr-only">Region</span>
+              <select id="poke-region-select" class="dex-select" aria-label="Region"></select>
+            </label>
+            <label class="filter-select">
+              <span class="sr-only">Season</span>
+              <select id="poke-season-select" class="dex-select" aria-label="Season"></select>
+            </label>
+            <label class="filter-select">
+              <span class="sr-only">Encounter</span>
+              <select id="poke-mode-select" class="dex-select" aria-label="Encounter"></select>
+            </label>
+            <label class="filter-select">
+              <span class="sr-only">Method</span>
+              <select id="poke-method-select" class="dex-select" aria-label="Method"></select>
+            </label>
           </div>
         </div>
 
@@ -135,9 +128,8 @@
 
       <section class="panel detail-panel" aria-live="polite">
         <div class="empty-state" id="poke-empty">
-          <p class="empty-kicker">Pick a Pokémon</p>
-          <h2>See where it appears</h2>
-          <p class="muted">Locations, seasons, single vs horde (3× / 5×), fishing rods, and Sweet Scent rates.</p>
+          <p class="empty-kicker">Pokémon</p>
+          <h2>Select a Pokémon</h2>
         </div>
 
         <div class="detail-content is-hidden" id="poke-detail">
@@ -159,42 +151,34 @@
     <main class="shell shell-hunt is-hidden" id="page-hunt">
       <section class="panel hunt-panel">
         <div class="panel-head hunt-head">
-          <h1>Best hunt spot</h1>
-          <p class="muted">Enter a Pokémon and your current season — we’ll rank the best places to hunt.</p>
+          <h1>Hunt</h1>
         </div>
 
-        <form class="hunt-form" id="hunt-form" autocomplete="off">
-          <div class="hunt-fields">
-            <label class="hunt-field">
-              <span class="field-label">Pokémon</span>
-              <input id="hunt-poke-input" type="text" placeholder="e.g. Gible or 443" list="hunt-poke-datalist" required />
-              <datalist id="hunt-poke-datalist"></datalist>
-            </label>
-
-            <div class="hunt-field">
-              <span class="field-label">Season</span>
-              <div class="filter-row hunt-season-row" id="hunt-season-filters" role="group" aria-label="Season"></div>
-              <p class="muted field-hint">Pick <strong>Any season</strong> to find the best season and spot automatically.</p>
-            </div>
-
-            <div class="hunt-field">
-              <span class="field-label">Prefer</span>
-              <div class="filter-row" id="hunt-prefer-filters" role="group" aria-label="Prefer">
-                <button type="button" class="chip is-active" data-prefer="best">Best overall</button>
-                <button type="button" class="chip" data-prefer="horde">Horde / Sweet Scent</button>
-                <button type="button" class="chip" data-prefer="single">Singles only</button>
-              </div>
-            </div>
-          </div>
-
-          <button type="submit" class="hunt-submit">Find best spots</button>
+        <form class="hunt-form toolbar" id="hunt-form" autocomplete="off">
+          <label class="hunt-field hunt-poke-field">
+            <span class="sr-only">Pokémon</span>
+            <input id="hunt-poke-input" class="search" type="text" placeholder="Pokémon name or #" list="hunt-poke-datalist" required />
+            <datalist id="hunt-poke-datalist"></datalist>
+          </label>
+          <label class="filter-select">
+            <span class="sr-only">Season</span>
+            <select id="hunt-season-select" class="dex-select" aria-label="Season"></select>
+          </label>
+          <label class="filter-select">
+            <span class="sr-only">Prefer</span>
+            <select id="hunt-prefer-select" class="dex-select" aria-label="Prefer">
+              <option value="best">Best overall</option>
+              <option value="horde">Horde / Sweet Scent</option>
+              <option value="single">Singles only</option>
+            </select>
+          </label>
+          <button type="submit" class="hunt-submit">Find spots</button>
         </form>
 
         <div id="hunt-results" class="hunt-results">
           <div class="empty-state hunt-empty">
-            <p class="empty-kicker">Ready when you are</p>
-            <h2>Pick a target</h2>
-            <p class="muted">We’ll score spots by encounter rate, horde size, and Sweet Scent odds for your season.</p>
+            <p class="empty-kicker">Hunt</p>
+            <h2>Enter a Pokémon</h2>
           </div>
         </div>
       </section>
@@ -205,58 +189,48 @@
       <section class="panel feature-panel rh-panel">
         <div class="panel-head hunt-head">
           <h1>Random shiny hunt</h1>
-          <p class="muted">Don’t know what to hunt? Filter the pool and roll a shiny target.</p>
         </div>
 
         <div class="rh-layout">
           <aside class="rh-filters">
-            <div class="filter-drawer rh-drawer">
-              <button type="button" class="filter-toggle is-open" data-filter-panel="rh-filter-panel" aria-expanded="true">
-                <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
-                  <path fill="currentColor" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/>
-                </svg>
-                Filters
-              </button>
-              <div class="filter-panel" id="rh-filter-panel">
-                <label class="hunt-field">
-                  <span class="field-label">Region</span>
-                  <select id="rh-region" class="rh-select"></select>
-                </label>
-                <label class="hunt-field">
-                  <span class="field-label">Pokédex color</span>
-                  <select id="rh-color" class="rh-select"></select>
-                </label>
-                <label class="hunt-field">
-                  <span class="field-label">Season</span>
-                  <select id="rh-season" class="rh-select"></select>
-                </label>
-                <label class="rh-check">
-                  <input type="checkbox" id="rh-exclusive" />
-                  <span>Season-exclusive only</span>
-                </label>
-                <div class="hunt-field">
-                  <span class="field-label">Encounter method</span>
-                  <div class="filter-row" id="rh-encounter" role="group" aria-label="Encounter method"></div>
-                </div>
-                <div class="hunt-field">
-                  <span class="field-label">Horde size</span>
-                  <div class="filter-row" id="rh-horde" role="group" aria-label="Horde size"></div>
-                </div>
-                <p class="muted field-hint" id="rh-pool-hint">Building pool…</p>
-              </div>
+            <div class="toolbar toolbar-stack" id="rh-filter-panel">
+              <label class="filter-select">
+                <span class="field-label">Region</span>
+                <select id="rh-region" class="dex-select"></select>
+              </label>
+              <label class="filter-select">
+                <span class="field-label">Color</span>
+                <select id="rh-color" class="dex-select"></select>
+              </label>
+              <label class="filter-select">
+                <span class="field-label">Season</span>
+                <select id="rh-season" class="dex-select"></select>
+              </label>
+              <label class="filter-select">
+                <span class="field-label">Encounter</span>
+                <select id="rh-encounter" class="dex-select"></select>
+              </label>
+              <label class="filter-select">
+                <span class="field-label">Horde</span>
+                <select id="rh-horde" class="dex-select"></select>
+              </label>
+              <label class="rh-check">
+                <input type="checkbox" id="rh-exclusive" />
+                <span>Season-exclusive only</span>
+              </label>
+              <p class="muted" id="rh-pool-hint">…</p>
             </div>
 
             <div class="rh-actions">
-              <button type="button" class="hunt-submit" id="rh-generate">Generate random hunt</button>
-              <button type="button" class="chip" id="rh-reset">Reset filters</button>
+              <button type="button" class="hunt-submit" id="rh-generate">Generate</button>
+              <button type="button" class="nav-link" id="rh-reset">Reset</button>
             </div>
           </aside>
 
           <div class="rh-result-wrap" id="rh-result" aria-live="polite">
             <div class="rh-empty rh-ready">
-              <p class="empty-kicker">Ready</p>
-              <h2>Roll a shiny target</h2>
-              <p class="muted">Set filters if you want — or leave them open and see what you get.</p>
+              <p class="empty-kicker">Random</p>
+              <h2>Generate a hunt</h2>
             </div>
           </div>
         </div>
@@ -277,63 +251,6 @@
         </div>
 
         <div id="ac-type-groups" class="ac-type-groups"></div>
-
-        <div class="ac-disc-wrap">
-          <h2 class="ac-section-title">Data notes</h2>
-          <div id="ac-discrepancies"></div>
-        </div>
-      </section>
-    </main>
-
-    <!-- TEAM FATE -->
-    <main class="shell is-hidden" id="page-teamfate" aria-label="Team Fate Shiny Wars">
-      <aside class="panel list-panel">
-        <div class="panel-head">
-          <h1>Team Fate</h1>
-          <p class="muted">Shiny Wars 2026 · Moonlight Route Tracker</p>
-        </div>
-
-        <label class="search-wrap">
-          <span class="sr-only">Search routes</span>
-          <input id="tf-search" type="search" placeholder="Search location or Pokémon…" autocomplete="off" />
-        </label>
-
-        <div class="filter-drawer">
-          <button type="button" class="filter-toggle" data-filter-panel="tf-side-panel" aria-expanded="false">
-            <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
-              <path fill="currentColor" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/>
-            </svg>
-            Filter
-            <span class="filter-badge is-hidden" id="tf-side-badge">0</span>
-          </button>
-          <div class="filter-panel is-collapsed" id="tf-side-panel">
-            <div class="filter-row" id="tf-region-filters" role="group" aria-label="Regions"></div>
-            <div class="filter-row" id="tf-time-filters" role="group" aria-label="Time of day"></div>
-          </div>
-        </div>
-
-        <div class="loc-scroll" id="tf-route-list" role="listbox" aria-label="Routes"></div>
-      </aside>
-
-      <section class="panel detail-panel" aria-live="polite">
-        <div class="empty-state" id="tf-empty">
-          <p class="empty-kicker">Team Fate</p>
-          <h2>Moonlight Route Tracker</h2>
-          <p class="muted">Select a hunt route to view encounter details, horde rates, and optimal times.</p>
-        </div>
-
-        <div class="detail-content is-hidden" id="tf-detail">
-          <header class="detail-head">
-            <div class="tf-moon"></div>
-            <div>
-              <p class="region-chip" id="tf-detail-region"></p>
-              <h2 id="tf-detail-name"></h2>
-              <p class="muted" id="tf-detail-meta"></p>
-            </div>
-          </header>
-
-          <div id="tf-stats" class="season-groups"></div>
-        </div>
       </section>
     </main>
 
@@ -343,7 +260,7 @@
         <div class="sw-gate-inner">
           <p class="empty-kicker">Restricted</p>
           <h1>Shiny Wars Hunt Router</h1>
-          <p class="muted">Personal shiny hunt strategy tool for PokeMMO Shiny Wars 2026. Not a leaderboard.</p>
+          <p class="muted">Shiny Wars 2026 hunt planner.</p>
           <form id="sw-login-form" class="sw-login">
             <label class="hunt-field">
               <span class="field-label">Password</span>
@@ -361,12 +278,11 @@
           <div>
             <p class="empty-kicker">Shiny Wars 2026</p>
             <h1>Hunt Router</h1>
-            <p class="muted">Plan targets · avoid duplicate lines · pick seasons · maximize points</p>
           </div>
           <div class="sw-season-box">
-            <span class="field-label">Current season</span>
-            <div class="filter-row" id="sw-season-filters"></div>
-            <p class="muted field-hint" id="sw-season-upcoming"></p>
+            <span class="field-label">Season</span>
+            <select id="sw-season-select" class="dex-select" aria-label="Current season"></select>
+            <p class="muted" id="sw-season-upcoming"></p>
           </div>
         </header>
 
@@ -377,7 +293,7 @@
                 <h2>Players</h2>
                 <button type="button" class="chip" id="sw-add-player">+ Add Member</button>
               </div>
-              <p class="muted field-hint">Optional · up to 30 · default is personal (you)</p>
+              <p class="muted field-hint">Up to 30 members</p>
               <div id="sw-player-list" class="sw-player-list"></div>
             </div>
 
@@ -385,7 +301,7 @@
               <div class="sw-block-head">
                 <h2>Completed shinies</h2>
               </div>
-              <p class="muted field-hint">Log OT shinies already secured (for unique / duplicate checks)</p>
+              <p class="muted field-hint">Logged OT shinies</p>
               <form id="sw-complete-form" class="sw-inline-form">
                 <input id="sw-complete-input" type="text" list="sw-poke-datalist" placeholder="Caught shiny…" />
                 <button type="submit" class="chip">Log</button>
@@ -448,9 +364,7 @@
         </div>
 
         <p class="muted sw-footnote">
-          Scoring based on
           <a href="https://forums.pokemmo.com/index.php?/topic/198507-pokemmo-shiny-wars-2026/" target="_blank" rel="noopener noreferrer">Shiny Wars 2026 rules</a>
-          · Unique line +8 · Player duplicate line = +1 · Seasons rotate weekly
         </p>
       </section>
     </main>
@@ -459,7 +373,6 @@
       <p>
         Sprites from
         <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer">PokéAPI</a>
-        · Encounter logic based on PokeMMO · Data from <code>monsters.json</code>
       </p>
     </footer>
 
@@ -467,6 +380,5 @@
     <script src="random-hunt.js"></script>
     <script src="altering-cave.js"></script>
     <script src="shinywars.js"></script>
-    <script src="team-fate.js"></script>
   </body>
 </html>

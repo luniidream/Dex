@@ -24,6 +24,21 @@
       .replace(/"/g, "&quot;");
   }
 
+  /** Normalize mixed-case sheet names (e.g. "poliwag" → "Poliwag"). */
+  function displayMonName(name) {
+    return String(name || "")
+      .trim()
+      .split(/([\s.\-]+)/)
+      .map((part) => {
+        if (!part || /^[\s.\-]+$/.test(part)) return part;
+        const lower = part.toLowerCase();
+        if (lower === "mr") return "Mr";
+        if (lower === "f" || lower === "m") return part.toUpperCase();
+        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      })
+      .join("");
+  }
+
   function mod(a, e) {
     return ((a % e) + e) % e;
   }
@@ -108,7 +123,7 @@
         <img src="${src}" alt="" width="64" height="64" loading="lazy"
           onerror="this.src='${SPRITE}/0.png';this.onerror=null;" />
         <figcaption>
-          <span class="ac-mon-name">${escapeHtml(p.name)}</span>
+          <span class="ac-mon-name">${escapeHtml(displayMonName(p.name))}</span>
           ${rateLabel ? `<span class="ac-mon-rate">${rateLabel}</span>` : ""}
           ${
             p.levelRange
@@ -178,13 +193,11 @@
       <div class="ac-hero">
         <div class="ac-hero-copy">
           <p class="empty-kicker">Altering Cave</p>
-          <h1>Current rotation</h1>
-          <p class="ac-rot-num">Rotation #${state.rotation}</p>
-          <p class="muted">Swaps every 6 hours · UTC schedule · Synergy-compatible</p>
+          <h1>Rotation #${state.rotation}</h1>
           ${
             rot?.repelTrick
               ? `<p class="ac-repel">Repel trick · Lv ${escapeHtml(String(rot.repelLevel))}</p>`
-              : `<p class="ac-repel is-off">No repel trick route</p>`
+              : `<p class="ac-repel is-off">No repel trick</p>`
           }
         </div>
         <div class="ac-countdown" aria-live="polite">
@@ -201,8 +214,7 @@
         }
       </div>
       <div class="ac-notify-row">
-        <button type="button" class="chip" id="ac-notify-btn">Enable browser notifications</button>
-        <p class="muted field-hint">Rotation changes are detected from the UTC schedule — leaving the page is fine. Optional Discord/webhook hooks can listen to <code>dex:altering-cave-rotation</code>.</p>
+        <button type="button" class="chip" id="ac-notify-btn">Enable notifications</button>
       </div>`;
   }
 
@@ -244,11 +256,12 @@
         const rot = getRotation(id);
         const isCurrent = id === current;
         let badge = "Rotation";
-        if (isCurrent) badge = "Current";
+        if (isCurrent) badge = "Now";
         else if (current != null) {
           const ahead = mod(id - current, count);
-          if (ahead >= 1 && ahead <= 3) badge = `Upcoming · in ${ahead}`;
-          else badge = `Previous · ${count - ahead} ago`;
+          if (ahead === 1) badge = "Next";
+          else if (ahead > 1) badge = `In ${ahead} swaps`;
+          else badge = "Earlier";
         }
         const active = selectedHistoryId === id ? " is-active" : "";
         const cur = isCurrent ? " is-current" : "";
@@ -301,19 +314,15 @@
     const rotations = groups.rotations || [];
     root.innerHTML = `
       <div class="ac-type-note">
-        <p class="empty-kicker">Team Méw type pools</p>
-        <h2>Type rotation groups</h2>
-        <p class="muted">From the local ZIP. These pools are <strong>not</strong> the classic 7-cycle schedule above — no reliable clock was present in the sheet. Browse by rotation / type.</p>
-      </div>
-      <div class="ac-type-tabs" id="ac-type-rot-tabs">
-        ${rotations
-          .map(
-            (r) =>
-              `<button type="button" class="chip${r.id === 1 ? " is-active" : ""}" data-ac-type-rot="${r.id}">Rotation ${r.id}${
-                r.snapshotMarkedCurrent ? " · sheet Current" : ""
-              }</button>`
-          )
-          .join("")}
+        <h2 class="ac-section-title">Type pools</h2>
+        <label class="filter-select ac-type-select">
+          <span class="sr-only">Type pool</span>
+          <select id="ac-type-rot-select" class="dex-select" aria-label="Type pool">
+            ${rotations
+              .map((r) => `<option value="${r.id}">Pool ${r.id}</option>`)
+              .join("")}
+          </select>
+        </label>
       </div>
       <div id="ac-type-rot-body"></div>`;
 
@@ -324,9 +333,8 @@
     const body = $("ac-type-rot-body");
     if (!body || !data?.typeRotationGroups) return;
     const rot = data.typeRotationGroups.rotations.find((r) => r.id === rotId);
-    document.querySelectorAll("[data-ac-type-rot]").forEach((btn) => {
-      btn.classList.toggle("is-active", +btn.dataset.acTypeRot === rotId);
-    });
+    const sel = $("ac-type-rot-select");
+    if (sel) sel.value = String(rotId);
     if (!rot) {
       body.innerHTML = `<p class="muted">Empty rotation.</p>`;
       return;
@@ -375,20 +383,6 @@
       .join("");
   }
 
-  function renderDiscrepancies() {
-    const el = $("ac-discrepancies");
-    if (!el || !data?.discrepancies) return;
-    el.innerHTML = data.discrepancies
-      .map(
-        (d) => `
-      <details class="ac-disc">
-        <summary>${escapeHtml(d.summary)}</summary>
-        <p class="muted">${escapeHtml(d.resolution)}</p>
-      </details>`
-      )
-      .join("");
-  }
-
   function startTicker() {
     stopTicker();
     tickTimer = setInterval(updateCountdownOnly, 1000);
@@ -407,16 +401,17 @@
     const root = $("page-altering");
     if (!root) return;
 
+    root.addEventListener("change", (e) => {
+      if (e.target.id === "ac-type-rot-select") {
+        renderTypeRotationBody(+e.target.value);
+      }
+    });
+
     root.addEventListener("click", (e) => {
       const hist = e.target.closest("[data-ac-hist]");
       if (hist) {
         selectedHistoryId = +hist.dataset.acHist;
         renderHistory();
-        return;
-      }
-      const typeRot = e.target.closest("[data-ac-type-rot]");
-      if (typeRot) {
-        renderTypeRotationBody(+typeRot.dataset.acTypeRot);
         return;
       }
       if (e.target.closest("#ac-notify-btn")) {
@@ -449,7 +444,6 @@
     renderCurrent();
     renderHistory();
     renderTypeGroups();
-    renderDiscrepancies();
   }
 
   async function load() {
