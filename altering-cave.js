@@ -226,11 +226,35 @@
       renderHistory();
       return;
     }
-    const el = $("ac-countdown-value");
-    const at = $("ac-next-at");
-    if (el) el.textContent = formatCountdown(state.msUntilSwap).text;
-    if (at) at.textContent = formatUtc(state.endsAt);
+
+    // Update all visible timer displays
+    const count = data?.schedule?.rotationCount || 7;
+    for (let id = 1; id <= count; id++) {
+      const timerEl = $(`ac-timer-${id}`);
+      if (!timerEl) continue;
+
+      const current = state.rotation;
+      let timeUntilMs = 0;
+      if (id === current) {
+        timeUntilMs = state.msUntilSwap;
+      } else if (current != null) {
+        const ahead = mod(id - current, count);
+        timeUntilMs = state.msUntilSwap + (ahead - 1) * state.intervalMs;
+      }
+
+      const cd = formatCountdown(timeUntilMs);
+      const valueEl = timerEl.querySelector(".ac-timer-value");
+      if (valueEl) valueEl.textContent = cd.text;
+    }
+
+    // Also update the main countdown if it exists
+    const mainCd = $("ac-countdown-value");
+    if (mainCd) mainCd.textContent = formatCountdown(state.msUntilSwap).text;
+    const mainAt = $("ac-next-at");
+    if (mainAt) mainAt.textContent = formatUtc(state.endsAt);
   }
+
+  let allRotationsExpanded = false;
 
   function renderHistory() {
     const list = $("ac-history");
@@ -240,9 +264,9 @@
     const count = data.schedule.rotationCount;
     if (selectedHistoryId == null) selectedHistoryId = current;
 
+    // Build rotation order
     const order = [];
     if (current != null) {
-      // upcoming first after current, then previous
       for (let i = 0; i < count; i++) {
         const id = ((current - 1 + i) % count) + 1;
         order.push(id);
@@ -251,136 +275,82 @@
       for (let i = 1; i <= count; i++) order.push(i);
     }
 
-    list.innerHTML = order
-      .map((id) => {
-        const rot = getRotation(id);
-        const isCurrent = id === current;
-        let badge = "Rotation";
-        if (isCurrent) badge = "Now";
-        else if (current != null) {
-          const ahead = mod(id - current, count);
-          if (ahead === 1) badge = "Next";
-          else if (ahead > 1) badge = `In ${ahead} swaps`;
-          else badge = "Earlier";
-        }
-        const active = selectedHistoryId === id ? " is-active" : "";
-        const cur = isCurrent ? " is-current" : "";
-        return `
-          <button type="button" class="ac-hist-item${active}${cur}" data-ac-hist="${id}">
-            <span class="ac-hist-badge">${badge}</span>
-            <span class="ac-hist-title">Rotation ${id}</span>
-            <span class="ac-hist-count">${rot?.pokemon?.length || 0} Pokémon</span>
-          </button>`;
-      })
-      .join("");
+    // Show only current rotation by default, or all if expanded
+    const visibleRotations = allRotationsExpanded ? order : [current];
+
+    list.innerHTML = `
+      <div class="ac-rotations-container">
+        ${visibleRotations
+          .map((id) => {
+            const rot = getRotation(id);
+            const isCurrent = id === current;
+            let badge = "Current";
+            if (!isCurrent && current != null) {
+              const ahead = mod(id - current, count);
+              if (ahead === 1) badge = "Next";
+              else if (ahead > 1) badge = `+${ahead}`;
+              else badge = "Previous";
+            }
+
+            // Calculate time until this rotation starts
+            let timeUntilMs = 0;
+            if (isCurrent) {
+              timeUntilMs = state.msUntilSwap;
+            } else if (current != null) {
+              const ahead = mod(id - current, count);
+              timeUntilMs = state.msUntilSwap + (ahead - 1) * state.intervalMs;
+            }
+
+            const cd = formatCountdown(timeUntilMs);
+            const cur = isCurrent ? " is-current" : "";
+            return `
+              <div class="ac-rotation-card${cur}" data-ac-hist="${id}">
+                <div class="ac-rot-header">
+                  <div class="ac-rot-info">
+                    <span class="ac-rot-badge">${badge}</span>
+                    <h3 class="ac-rot-title">Rotation #${id}</h3>
+                  </div>
+                  <div class="ac-rot-timer" id="ac-timer-${id}">
+                    <span class="ac-timer-label">Time until</span>
+                    <span class="ac-timer-value">${cd.text}</span>
+                  </div>
+                </div>
+                <div class="ac-mon-grid" id="ac-mons-${id}">
+                  ${
+                    rot?.pokemon?.length
+                      ? rot.pokemon.map((p) => spriteHtml(p)).join("")
+                      : `<p class="muted">No Pokémon listed.</p>`
+                  }
+                </div>
+                ${
+                  rot?.repelTrick
+                    ? `<p class="ac-repel">Repel trick · Lv ${escapeHtml(String(rot.repelLevel))}</p>`
+                    : ""
+                }
+              </div>`;
+          })
+          .join("")}
+      </div>
+      ${
+        !allRotationsExpanded
+          ? `<button type="button" class="ac-expand-btn" id="ac-expand-btn">View all rotations</button>`
+          : ""
+      }`;
 
     renderHistoryDetail(selectedHistoryId);
   }
 
   function renderHistoryDetail(id) {
-    const panel = $("ac-history-detail");
-    if (!panel) return;
-    const rot = getRotation(id);
-    if (!rot) {
-      panel.innerHTML = `<p class="muted">Unknown rotation.</p>`;
-      return;
-    }
-    const state = getClassicState();
-    const isCurrent = state.ok && state.rotation === id;
-    panel.innerHTML = `
-      <header class="ac-detail-head">
-        <p class="empty-kicker">${isCurrent ? "Live now" : "Rotation preview"}</p>
-        <h2>Rotation ${rot.id}</h2>
-        <p class="muted">${
-          rot.repelTrick
-            ? `Repel trick · Lv ${escapeHtml(String(rot.repelLevel))}`
-            : "No repel trick"
-        }</p>
-      </header>
-      <div class="ac-mon-grid">
-        ${(rot.pokemon || []).map((p) => spriteHtml(p)).join("")}
-      </div>`;
+    // Detail panel removed - rotations now display inline in cards
+    return;
   }
 
   function renderTypeGroups() {
+    // Type groups (pools) section is now hidden - removed entirely
     const root = $("ac-type-groups");
-    if (!root) return;
-    const groups = data?.typeRotationGroups;
-    if (!groups) {
-      root.innerHTML = `<p class="muted">Team Méw type-pool data not loaded.</p>`;
-      return;
+    if (root) {
+      root.style.display = "none";
     }
-
-    const rotations = groups.rotations || [];
-    root.innerHTML = `
-      <div class="ac-type-note">
-        <h2 class="ac-section-title">Type pools</h2>
-        <label class="filter-select ac-type-select">
-          <span class="sr-only">Type pool</span>
-          <select id="ac-type-rot-select" class="dex-select" aria-label="Type pool">
-            ${rotations
-              .map((r) => `<option value="${r.id}">Pool ${r.id}</option>`)
-              .join("")}
-          </select>
-        </label>
-      </div>
-      <div id="ac-type-rot-body"></div>`;
-
-    renderTypeRotationBody(1);
-  }
-
-  function renderTypeRotationBody(rotId) {
-    const body = $("ac-type-rot-body");
-    if (!body || !data?.typeRotationGroups) return;
-    const rot = data.typeRotationGroups.rotations.find((r) => r.id === rotId);
-    const sel = $("ac-type-rot-select");
-    if (sel) sel.value = String(rotId);
-    if (!rot) {
-      body.innerHTML = `<p class="muted">Empty rotation.</p>`;
-      return;
-    }
-    const types = Object.keys(rot.byType).sort();
-    if (!types.length) {
-      body.innerHTML = `<p class="muted">No type pools filled for Rotation ${rotId} in the sheet.</p>`;
-      return;
-    }
-    body.innerHTML = types
-      .map((type) => {
-        const pool = rot.byType[type];
-        return `
-          <section class="ac-type-block">
-            <h3>${escapeHtml(type)}</h3>
-            <div class="ac-type-cols">
-              <div>
-                <p class="field-label">Singles</p>
-                <div class="ac-mon-grid ac-mon-grid-compact">
-                  ${(pool.singles || [])
-                    .map((p) =>
-                      spriteHtml(
-                        { id: p.id, name: p.name, rate: p.tier },
-                        { tierMode: true }
-                      )
-                    )
-                    .join("") || "<p class='muted'>—</p>"}
-                </div>
-              </div>
-              <div>
-                <p class="field-label">Hordes</p>
-                <div class="ac-mon-grid ac-mon-grid-compact">
-                  ${(pool.hordes || [])
-                    .map((p) =>
-                      spriteHtml(
-                        { id: p.id, name: p.name, rate: p.tier },
-                        { tierMode: true }
-                      )
-                    )
-                    .join("") || "<p class='muted'>—</p>"}
-                </div>
-              </div>
-            </div>
-          </section>`;
-      })
-      .join("");
   }
 
   function startTicker() {
@@ -401,19 +371,23 @@
     const root = $("page-altering");
     if (!root) return;
 
-    root.addEventListener("change", (e) => {
-      if (e.target.id === "ac-type-rot-select") {
-        renderTypeRotationBody(+e.target.value);
-      }
-    });
-
     root.addEventListener("click", (e) => {
-      const hist = e.target.closest("[data-ac-hist]");
-      if (hist) {
-        selectedHistoryId = +hist.dataset.acHist;
+      // Expand button
+      if (e.target.id === "ac-expand-btn") {
+        allRotationsExpanded = true;
         renderHistory();
         return;
       }
+
+      // Rotation card click
+      const card = e.target.closest("[data-ac-hist]");
+      if (card) {
+        selectedHistoryId = +card.dataset.acHist;
+        renderHistoryDetail(selectedHistoryId);
+        return;
+      }
+
+      // Notify button
       if (e.target.closest("#ac-notify-btn")) {
         if (typeof Notification === "undefined") {
           alert("Notifications are not supported in this browser.");
@@ -431,7 +405,7 @@
       }
     });
 
-    // Recalculate on tab focus (catches sleep / wrong local clocks relative to refresh)
+    // Recalculate on tab focus
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && !$("page-altering")?.classList.contains("is-hidden")) {
         renderCurrent();
