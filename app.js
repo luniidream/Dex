@@ -322,12 +322,12 @@ function readHash() {
 function showPage() {
   const page = state.page;
   $("page-locations").classList.toggle("is-hidden", page !== "locations");
-  $("page-pokemon").classList.toggle("is-hidden", page !== "pokemon");
+  $("page-pokedex").classList.toggle("is-hidden", page !== "pokedex");
   $("page-hunt").classList.toggle("is-hidden", page !== "hunt");
   $("page-random")?.classList.toggle("is-hidden", page !== "random");
   $("page-altering")?.classList.toggle("is-hidden", page !== "altering");
   $("nav-locations")?.classList.toggle("is-active", page === "locations");
-  $("nav-pokemon")?.classList.toggle("is-active", page === "pokemon");
+  $("nav-pokedex")?.classList.toggle("is-active", page === "pokedex");
   $("nav-hunt")?.classList.toggle("is-active", page === "hunt");
   $("nav-random")?.classList.toggle("is-active", page === "random");
   $("nav-altering")?.classList.toggle("is-active", page === "altering");
@@ -348,6 +348,12 @@ function showPage() {
     window.AlteringCave?.show();
   } else {
     window.AlteringCave?.hide();
+  }
+
+  if (page === "pokedex") {
+    window.PokeDex?.show();
+  } else {
+    window.PokeDex?.hide();
   }
 }
 

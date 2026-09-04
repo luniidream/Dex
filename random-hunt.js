@@ -137,7 +137,9 @@
 
         if (filters.color !== "All") {
           const c = colorsById[e.id];
-          if (!c || c !== filters.color) continue;
+          // Check the shiny_color field if available, otherwise fall back to base color
+          const shinyColor = colorsById[`${e.id}_shiny`] || c;
+          if (!shinyColor || shinyColor !== filters.color) continue;
         }
 
         if (!byId.has(e.id)) {

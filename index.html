@@ -26,7 +26,7 @@
 
       <nav class="main-nav" aria-label="Primary">
         <button type="button" class="nav-link is-active" data-page="locations" id="nav-locations">Locations</button>
-        <button type="button" class="nav-link" data-page="pokemon" id="nav-pokemon">Pokémon</button>
+        <button type="button" class="nav-link" data-page="pokedex" id="nav-pokedex">PokéDex</button>
         <button type="button" class="nav-link" data-page="hunt" id="nav-hunt">Hunt</button>
         <button type="button" class="nav-link" data-page="random" id="nav-random">Random</button>
         <button type="button" class="nav-link" data-page="altering" id="nav-altering">Altering Cave</button>
@@ -88,59 +88,54 @@
       </section>
     </main>
 
-    <!-- POKEMON -->
-    <main class="shell is-hidden" id="page-pokemon">
+    <!-- POKEDEX -->
+    <main class="shell is-hidden" id="page-pokedex">
       <aside class="panel list-panel">
         <div class="panel-head">
-          <h1>Pokémon</h1>
-          <p id="poke-count" class="muted">Loading…</p>
+          <h1>PokéDex</h1>
+          <p id="pdex-count" class="muted">Loading…</p>
         </div>
 
         <div class="toolbar toolbar-stack">
           <label class="search-wrap">
             <span class="sr-only">Search Pokémon</span>
-            <input id="poke-search" class="search" type="search" placeholder="Search name or #" autocomplete="off" />
+            <input id="pdex-search" class="search" type="search" placeholder="Search name or #" autocomplete="off" />
           </label>
           <div class="toolbar-filters">
             <label class="filter-select">
-              <span class="sr-only">Region</span>
-              <select id="poke-region-select" class="dex-select" aria-label="Region"></select>
+              <span class="sr-only">Type</span>
+              <select id="pdex-type-select" class="dex-select" aria-label="Type"></select>
             </label>
             <label class="filter-select">
-              <span class="sr-only">Season</span>
-              <select id="poke-season-select" class="dex-select" aria-label="Season"></select>
-            </label>
-            <label class="filter-select">
-              <span class="sr-only">Encounter</span>
-              <select id="poke-mode-select" class="dex-select" aria-label="Encounter"></select>
-            </label>
-            <label class="filter-select">
-              <span class="sr-only">Method</span>
-              <select id="poke-method-select" class="dex-select" aria-label="Method"></select>
+              <span class="sr-only">Generation</span>
+              <select id="pdex-gen-select" class="dex-select" aria-label="Generation"></select>
             </label>
           </div>
         </div>
 
-        <div class="loc-scroll" id="pokemon-list" role="listbox" aria-label="Pokémon"></div>
+        <div class="pdex-grid" id="pokedex-grid" role="listbox" aria-label="Pokémon"></div>
       </aside>
 
       <section class="panel detail-panel" aria-live="polite">
-        <div class="empty-state" id="poke-empty">
-          <p class="empty-kicker">Pokémon</p>
+        <div class="empty-state" id="pdex-empty">
+          <p class="empty-kicker">PokéDex</p>
           <h2>Select a Pokémon</h2>
         </div>
 
-        <div class="detail-content is-hidden" id="poke-detail">
-          <header class="detail-head poke-detail-head">
-            <img id="poke-detail-sprite" alt="" width="96" height="96" />
+        <div class="detail-content is-hidden" id="pdex-detail">
+          <header class="detail-head pdex-detail-head">
+            <img id="pdex-detail-sprite" alt="" width="96" height="96" />
+            <img id="pdex-detail-shiny" alt="" width="96" height="96" title="Shiny form" />
             <div>
-              <p class="region-chip" id="poke-detail-id"></p>
-              <h2 id="poke-detail-name"></h2>
-              <p class="muted" id="poke-detail-meta"></p>
+              <p class="region-chip" id="pdex-detail-id"></p>
+              <h2 id="pdex-detail-name"></h2>
+              <p class="muted" id="pdex-detail-meta"></p>
             </div>
           </header>
 
-          <div id="poke-groups" class="season-groups"></div>
+          <div id="pdex-stats" class="pdex-stats"></div>
+          <div id="pdex-abilities" class="pdex-abilities"></div>
+          <div id="pdex-moves" class="pdex-moves"></div>
         </div>
       </section>
     </main>
@@ -372,6 +367,7 @@
     </footer>
 
     <script src="app.js"></script>
+    <script src="pokedex.js"></script>
     <script src="random-hunt.js"></script>
     <script src="altering-cave.js"></script>
     <script src="shinywars.js"></script>

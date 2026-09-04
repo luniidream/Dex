@@ -190,31 +190,35 @@
     const pokemon = rot?.pokemon || [];
 
     root.innerHTML = `
-      <div class="ac-hero">
-        <div class="ac-hero-copy">
-          <p class="empty-kicker">Altering Cave</p>
-          <h1>Rotation #${state.rotation}</h1>
+      <div class="ac-current-wrap">
+        <div class="ac-current-header">
+          <div>
+            <p class="empty-kicker">Altering Cave</p>
+            <h1>Rotation #${state.rotation}</h1>
+            ${
+              rot?.repelTrick
+                ? `<p class="ac-repel">Repel trick · Lv ${escapeHtml(String(rot.repelLevel))}</p>`
+                : `<p class="ac-repel is-off">No repel trick</p>`
+            }
+          </div>
+          <div class="ac-compact-timer" aria-live="polite">
+            <span class="ac-timer-icon">⏳</span>
+            <div class="ac-timer-content">
+              <p class="ac-timer-label">Next rotation in</p>
+              <p class="ac-timer-value" id="ac-countdown-value">${cd.text}</p>
+            </div>
+          </div>
+        </div>
+        <div class="ac-mon-grid" id="ac-current-mons">
           ${
-            rot?.repelTrick
-              ? `<p class="ac-repel">Repel trick · Lv ${escapeHtml(String(rot.repelLevel))}</p>`
-              : `<p class="ac-repel is-off">No repel trick</p>`
+            pokemon.length
+              ? pokemon.map((p) => spriteHtml(p)).join("")
+              : `<p class="muted">No Pokémon listed for this rotation.</p>`
           }
         </div>
-        <div class="ac-countdown" aria-live="polite">
-          <p class="ac-countdown-label">Next rotation</p>
-          <p class="ac-countdown-value" id="ac-countdown-value">${cd.text}</p>
-          <p class="muted" id="ac-next-at">${escapeHtml(formatUtc(state.endsAt))}</p>
+        <div class="ac-notify-row">
+          <button type="button" class="chip" id="ac-notify-btn">Enable notifications</button>
         </div>
-      </div>
-      <div class="ac-mon-grid" id="ac-current-mons">
-        ${
-          pokemon.length
-            ? pokemon.map((p) => spriteHtml(p)).join("")
-            : `<p class="muted">No Pokémon listed for this rotation.</p>`
-        }
-      </div>
-      <div class="ac-notify-row">
-        <button type="button" class="chip" id="ac-notify-btn">Enable notifications</button>
       </div>`;
   }
 
@@ -279,6 +283,12 @@
     const visibleRotations = allRotationsExpanded ? order : [current];
 
     list.innerHTML = `
+      <div class="ac-rotations-header">
+        <h2 class="ac-section-title">Rotations</h2>
+        <button type="button" class="ac-toggle-rotations" id="ac-toggle-rotations">
+          ${allRotationsExpanded ? "Show Current Only" : "View All Rotations"}
+        </button>
+      </div>
       <div class="ac-rotations-container">
         ${visibleRotations
           .map((id) => {
@@ -330,14 +340,7 @@
               </div>`;
           })
           .join("")}
-      </div>
-      ${
-        !allRotationsExpanded
-          ? `<button type="button" class="ac-expand-btn" id="ac-expand-btn">View all rotations</button>`
-          : ""
-      }`;
-
-    renderHistoryDetail(selectedHistoryId);
+      </div>`;
   }
 
   function renderHistoryDetail(id) {
@@ -372,9 +375,9 @@
     if (!root) return;
 
     root.addEventListener("click", (e) => {
-      // Expand button
-      if (e.target.id === "ac-expand-btn") {
-        allRotationsExpanded = true;
+      // Toggle rotations button
+      if (e.target.id === "ac-toggle-rotations") {
+        allRotationsExpanded = !allRotationsExpanded;
         renderHistory();
         return;
       }
