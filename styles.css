@@ -2195,9 +2195,21 @@ input.search:focus,
 
 /* ========== POKEDEX ========== */
 
+#page-pokedex {
+  grid-template-columns: 1fr;
+}
+
+#page-pokedex > .list-panel {
+  width: 100%;
+}
+
+#page-pokedex > .detail-panel {
+  display: none;
+}
+
 .pdex-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.75rem;
   padding: 0;
   align-content: start;
@@ -2509,7 +2521,32 @@ input.search:focus,
 
 @media (max-width: 900px) {
   .pdex-grid {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 0.55rem;
+  }
+
+  .pdex-card {
+    min-height: 158px;
+    padding: 0.55rem 0.45rem;
+  }
+
+  .pdex-card-artwork {
+    width: 76px;
+    height: 76px;
+  }
+
+  .pdex-card-artwork img {
+    width: 66px;
+    height: 66px;
+  }
+
+  .pdex-card-name {
+    font-size: 0.78rem;
+  }
+
+  .type-pill {
+    padding: 0.14rem 0.34rem;
+    font-size: 0.62rem;
   }
 
   .rh-stat-strip {
@@ -2519,6 +2556,36 @@ input.search:focus,
   .pdex-detail-head {
     flex-direction: column;
     align-items: center;
+  }
+
+  #pdex-detail {
+    padding: 0.75rem;
+  }
+
+  #pdex-detail .pdex-detail-head,
+  #pdex-detail .pdex-stats,
+  #pdex-detail .pdex-abilities,
+  #pdex-detail .pdex-moves {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .pdex-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.45rem;
+  }
+
+  .pdex-stat {
+    padding: 0.55rem 0.35rem;
+  }
+
+  .pdex-location-list li {
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .pdex-location-list span {
+    text-align: left;
   }
 }
 

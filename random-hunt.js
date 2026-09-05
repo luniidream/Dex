@@ -60,6 +60,7 @@
   };
 
   let colorsById = {};
+  let shinyColorsById = {};
   let monstersById = new Map();
   let lastResult = null;
   let lastPoolSize = 0;
@@ -109,7 +110,8 @@
         .map(titleCase),
       eggGroups: normalizeArray(raw?.egg_groups || raw?.eggGroups).map(titleCase),
       catchRate: raw?.catch_rate ?? raw?.catchRate ?? null,
-      shinyColor: raw?.shiny_color || colorsById[id] || null,
+      shinyColor: normalizeColor(raw?.shiny_color ?? raw?.shinyColor ?? shinyColorsById[id]),
+      fallbackColor: normalizeColor(colorsById[id]),
       stats: {
         hp: stats.hp ?? stats.HP ?? null,
         attack: stats.attack ?? stats.atk ?? stats.Atk ?? null,
@@ -141,6 +143,22 @@
     if (filters.eggGroup !== "All" && !monster.eggGroups.some((group) => group.toLowerCase() === filters.eggGroup.toLowerCase())) return false;
     if (filters.catchRate !== "All" && catchRateBucket(monster.catchRate) !== filters.catchRate) return false;
     return true;
+  }
+
+  function matchesNonColorMonsterFilters(monster) {
+    const hasMetadataFilters =
+      filters.type !== "All" ||
+      filters.eggGroup !== "All" ||
+      filters.catchRate !== "All";
+    if (!monster) return !hasMetadataFilters;
+    if (filters.type !== "All" && !monster.types.some((type) => type.toLowerCase() === filters.type.toLowerCase())) return false;
+    if (filters.eggGroup !== "All" && !monster.eggGroups.some((group) => group.toLowerCase() === filters.eggGroup.toLowerCase())) return false;
+    if (filters.catchRate !== "All" && catchRateBucket(monster.catchRate) !== filters.catchRate) return false;
+    return true;
+  }
+
+  function normalizeColor(value) {
+    return String(value ?? "").trim().toLowerCase() || null;
   }
 
   function isHorde(e) {
@@ -212,7 +230,7 @@
           byId.set(e.id, {
             id: e.id,
             name: e.name,
-            color: monster?.shinyColor || null,
+            color: monster?.shinyColor || monster?.fallbackColor || null,
             types: monster?.types || [],
             eggGroups: monster?.eggGroups || [],
             catchRate: monster?.catchRate ?? null,
@@ -371,6 +389,140 @@
       accentSoft: rgb(lifted.r, lifted.g, lifted.b),
       glow: `rgba(${Math.round(glow.r)}, ${Math.round(glow.g)}, ${Math.round(glow.b)}, 0.38)`,
     };
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0;
+    let s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+    }
+    return { h, s, l };
+  }
+
+  function bucketPokemonColor(r, g, b) {
+    const { h, s, l } = rgbToHsl(r, g, b);
+    if (l < 0.18) return "black";
+    if (l > 0.84 && s < 0.24) return "white";
+    if (s < 0.16) return "gray";
+    if (h < 12 || h >= 345) return l > 0.58 ? "pink" : "red";
+    if (h < 28) return "brown";
+    if (h < 48) return l < 0.45 ? "brown" : "yellow";
+    if (h < 68) return "yellow";
+    if (h < 165) return "green";
+    if (h < 245) return "blue";
+    if (h < 292) return "purple";
+    if (h < 345) return l > 0.48 ? "pink" : "purple";
+    return "gray";
+  }
+
+  function sampleDominantColor(img) {
+    const tw = 64;
+    const th = 64;
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, tw, th);
+    let data;
+    try {
+      data = ctx.getImageData(0, 0, tw, th).data;
+    } catch {
+      return null;
+    }
+
+    const buckets = new Map();
+    for (let i = 0; i < data.length; i += 4) {
+      const a = data[i + 3];
+      if (a < 120) continue;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const lum = luminance(r, g, b);
+      if (lum < 10 || lum > 252) continue;
+      const sat = saturation(r, g, b);
+      const color = bucketPokemonColor(r, g, b);
+      const weight = (a / 255) * (0.8 + sat * 1.8) * (lum > 28 && lum < 238 ? 1 : 0.55);
+      buckets.set(color, (buckets.get(color) || 0) + weight);
+    }
+
+    return [...buckets.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  }
+
+  async function classifyShinyColor(id) {
+    if (shinyColorsById[id]) return shinyColorsById[id];
+    const urls = [
+      `${SPRITE}/other/home/shiny/${id}.png`,
+      `${SHINY_STATIC}/${id}.png`,
+      `${SPRITE}/versions/generation-v/black-white/shiny/${id}.png`,
+    ];
+    for (const url of urls) {
+      try {
+        const color = sampleDominantColor(await loadSprite(url));
+        if (color) {
+          shinyColorsById[id] = color;
+          const monster = monstersById.get(Number(id));
+          if (monster && !monster.shinyColor) monster.shinyColor = color;
+          return color;
+        }
+      } catch {
+        /* try next source */
+      }
+    }
+    return null;
+  }
+
+  function candidateIdsForCurrentEncounterFilters() {
+    const data = window.DexHunt?.state?.data;
+    if (!data?.locations) return [];
+    const ids = new Set();
+    for (const loc of data.locations) {
+      if (filters.region !== "All" && loc.region !== filters.region) continue;
+      for (const e of loc.pokemon) {
+        if (!matchesSeasonFilter(e, filters.season, filters.seasonExclusive)) continue;
+        if (!matchesEncounter(e, filters.encounter)) continue;
+        if (!matchesHordeSize(e, filters.hordeSize)) continue;
+        if (filters.encounter === "single" && filters.hordeSize !== "any" && filters.hordeSize !== "normal") continue;
+        if (filters.encounter === "horde" && filters.hordeSize === "normal") continue;
+        const monster = monstersById.get(Number(e.id));
+        if (!monster || !matchesNonColorMonsterFilters(monster)) continue;
+        ids.add(Number(e.id));
+      }
+    }
+    return [...ids];
+  }
+
+  async function mapLimit(items, limit, worker) {
+    let index = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (index < items.length) {
+          const item = items[index++];
+          await worker(item);
+        }
+      })
+    );
+  }
+
+  async function ensureShinyColorsForFilter() {
+    if (filters.color === "All") return;
+    const ids = candidateIdsForCurrentEncounterFilters().filter((id) => !monstersById.get(id)?.shinyColor);
+    if (!ids.length) return;
+    const hint = $("rh-pool-hint");
+    if (hint) hint.textContent = `Checking shiny colors for ${ids.length} Pokemon...`;
+    await mapLimit(ids, 8, classifyShinyColor);
   }
 
   async function getShinyPalette(id) {
@@ -593,6 +745,9 @@
 
   async function generate() {
     const token = ++genToken;
+    await ensureShinyColorsForFilter();
+    if (token !== genToken) return;
+    updatePoolHint();
     const pool = buildPool();
     lastPoolSize = pool.length;
     if (!pool.length) {
@@ -653,7 +808,7 @@
       else if (t.id === "rh-horde") filters.hordeSize = t.value;
       else if (t.id === "rh-exclusive") filters.seasonExclusive = t.checked;
       else return;
-      updatePoolHint();
+      ensureShinyColorsForFilter().then(updatePoolHint);
     });
 
     root.addEventListener("click", (e) => {
@@ -687,6 +842,7 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       colorsById = data.byId || {};
+      shinyColorsById = data.shinyById || data.byShinyId || {};
     } catch (err) {
       console.warn("pokemon-colors.json unavailable", err);
       colorsById = {};
