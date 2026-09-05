@@ -50,6 +50,9 @@
   const filters = {
     region: "All",
     color: "All",
+    type: "All",
+    eggGroup: "All",
+    catchRate: "All",
     season: "All",
     seasonExclusive: false,
     encounter: "any",
@@ -57,6 +60,7 @@
   };
 
   let colorsById = {};
+  let monstersById = new Map();
   let lastResult = null;
   let lastPoolSize = 0;
   let bound = false;
@@ -71,6 +75,72 @@
 
   function capitalize(s) {
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  function titleCase(value) {
+    return String(value ?? "")
+      .toLowerCase()
+      .split(/[\s_-]+/)
+      .filter(Boolean)
+      .map((part) => capitalize(part))
+      .join(" ");
+  }
+
+  function stripInvalidJsonControls(text) {
+    return text.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
+  }
+
+  function normalizeArray(value) {
+    if (Array.isArray(value)) return value;
+    if (value == null || value === "") return [];
+    return [value];
+  }
+
+  function normalizeMonster(raw) {
+    const id = Number(raw?.id ?? raw?.dex_number ?? raw?.dexNumber);
+    if (!Number.isInteger(id) || id < 1 || id > 649) return null;
+    const stats = raw?.base_stats || raw?.stats || {};
+    return {
+      id,
+      name: raw?.name || `#${id}`,
+      types: normalizeArray(raw?.types ?? raw?.type)
+        .map((type) => (typeof type === "string" ? type : type?.name))
+        .filter(Boolean)
+        .map(titleCase),
+      eggGroups: normalizeArray(raw?.egg_groups || raw?.eggGroups).map(titleCase),
+      catchRate: raw?.catch_rate ?? raw?.catchRate ?? null,
+      shinyColor: raw?.shiny_color || colorsById[id] || null,
+      stats: {
+        hp: stats.hp ?? stats.HP ?? null,
+        attack: stats.attack ?? stats.atk ?? stats.Atk ?? null,
+        defense: stats.defense ?? stats.def ?? stats.Def ?? null,
+        spAttack: stats.sp_attack ?? stats.special_attack ?? stats.SpA ?? null,
+        spDefense: stats.sp_defense ?? stats.special_defense ?? stats.SpD ?? null,
+        speed: stats.speed ?? stats.spe ?? stats.Spe ?? null,
+      },
+    };
+  }
+
+  function catchRateBucket(rate) {
+    const n = Number(rate);
+    if (!Number.isFinite(n)) return "unknown";
+    if (n <= 45) return "low";
+    if (n <= 120) return "medium";
+    return "high";
+  }
+
+  function matchesMonsterFilters(monster) {
+    const hasMetadataFilters =
+      filters.color !== "All" ||
+      filters.type !== "All" ||
+      filters.eggGroup !== "All" ||
+      filters.catchRate !== "All";
+    if (!monster) return !hasMetadataFilters;
+    if (filters.color !== "All" && String(monster.shinyColor || "").toLowerCase() !== filters.color.toLowerCase()) return false;
+    if (filters.type !== "All" && !monster.types.some((type) => type.toLowerCase() === filters.type.toLowerCase())) return false;
+    if (filters.eggGroup !== "All" && !monster.eggGroups.some((group) => group.toLowerCase() === filters.eggGroup.toLowerCase())) return false;
+    if (filters.catchRate !== "All" && catchRateBucket(monster.catchRate) !== filters.catchRate) return false;
+    return true;
   }
 
   function isHorde(e) {
@@ -135,18 +205,18 @@
           continue;
         }
 
-        if (filters.color !== "All") {
-          const c = colorsById[e.id];
-          // Check the shiny_color field if available, otherwise fall back to base color
-          const shinyColor = colorsById[`${e.id}_shiny`] || c;
-          if (!shinyColor || shinyColor !== filters.color) continue;
-        }
+        const monster = monstersById.get(Number(e.id));
+        if (!matchesMonsterFilters(monster)) continue;
 
         if (!byId.has(e.id)) {
           byId.set(e.id, {
             id: e.id,
             name: e.name,
-            color: colorsById[e.id] || null,
+            color: monster?.shinyColor || null,
+            types: monster?.types || [],
+            eggGroups: monster?.eggGroups || [],
+            catchRate: monster?.catchRate ?? null,
+            stats: monster?.stats || {},
             encounters: [],
           });
         }
@@ -360,6 +430,12 @@
     const data = window.DexHunt?.state?.data;
     const regions = ["All", ...(data?.regions || [])];
     const seasons = ["All", "Spring", "Summer", "Autumn", "Winter"];
+    const types = ["All", ...new Set([...monstersById.values()].flatMap((m) => m.types || []))].sort((a, b) =>
+      a === "All" ? -1 : b === "All" ? 1 : a.localeCompare(b)
+    );
+    const eggGroups = ["All", ...new Set([...monstersById.values()].flatMap((m) => m.eggGroups || []))].sort((a, b) =>
+      a === "All" ? -1 : b === "All" ? 1 : a.localeCompare(b)
+    );
 
     const regionEl = $("rh-region");
     const colorEl = $("rh-color");
@@ -379,6 +455,28 @@
         (c) =>
           `<option value="${c}"${filters.color === c ? " selected" : ""}>${capitalize(c)}</option>`
       ).join("");
+
+    fillSelect(
+      "rh-type",
+      types.map((type) => ({ id: type, label: type === "All" ? "Any type" : type })),
+      filters.type
+    );
+    fillSelect(
+      "rh-egg-group",
+      eggGroups.map((group) => ({ id: group, label: group === "All" ? "Any egg group" : group })),
+      filters.eggGroup
+    );
+    fillSelect(
+      "rh-catch-rate",
+      [
+        { id: "All", label: "Any catch rate" },
+        { id: "low", label: "Low (1-45)" },
+        { id: "medium", label: "Medium (46-120)" },
+        { id: "high", label: "High (121+)" },
+        { id: "unknown", label: "Unknown" },
+      ],
+      filters.catchRate
+    );
 
     seasonEl.innerHTML = seasons
       .map(
@@ -443,6 +541,7 @@
       regions.join(" · ") || "—",
     ];
     if (candidate.color) metaBits.push(capitalize(candidate.color));
+    if (candidate.types?.length) metaBits.push(candidate.types.join(" / "));
 
     const tags = [];
     tags.push(`<span class="rh-tag">${escapeHtml(hordeLabel(enc))}</span>`);
@@ -466,6 +565,14 @@
         <h2 class="rh-name">${escapeHtml(candidate.name)}</h2>
         <p class="rh-meta">${metaBits.map(escapeHtml).join(" · ")}</p>
         <div class="rh-tags">${tags.join("")}</div>
+        <div class="rh-stat-strip">
+          ${statChip("HP", candidate.stats?.hp)}
+          ${statChip("Atk", candidate.stats?.attack)}
+          ${statChip("Def", candidate.stats?.defense)}
+          ${statChip("SpA", candidate.stats?.spAttack)}
+          ${statChip("SpD", candidate.stats?.spDefense)}
+          ${statChip("Spe", candidate.stats?.speed)}
+        </div>
         <p class="rh-spot muted">
           <button type="button" class="rh-link" data-rh-goto-loc="${encodeURIComponent(enc.locationKey)}">${escapeHtml(enc.location)}</button>
           · ${escapeHtml(enc.region)}
@@ -476,6 +583,10 @@
           <button type="button" class="nav-link" data-rh-goto-poke="${candidate.id}">Open in Dex</button>
         </div>
       </article>`;
+  }
+
+  function statChip(label, value) {
+    return `<span><b>${escapeHtml(label)}</b>${escapeHtml(value ?? "?")}</span>`;
   }
 
   let genToken = 0;
@@ -512,6 +623,9 @@
   function resetFilters() {
     filters.region = "All";
     filters.color = "All";
+    filters.type = "All";
+    filters.eggGroup = "All";
+    filters.catchRate = "All";
     filters.season = "All";
     filters.seasonExclusive = false;
     filters.encounter = "any";
@@ -531,6 +645,9 @@
       const t = e.target;
       if (t.id === "rh-region") filters.region = t.value;
       else if (t.id === "rh-color") filters.color = t.value;
+      else if (t.id === "rh-type") filters.type = t.value;
+      else if (t.id === "rh-egg-group") filters.eggGroup = t.value;
+      else if (t.id === "rh-catch-rate") filters.catchRate = t.value;
       else if (t.id === "rh-season") filters.season = t.value;
       else if (t.id === "rh-encounter") filters.encounter = t.value;
       else if (t.id === "rh-horde") filters.hordeSize = t.value;
@@ -550,7 +667,7 @@
       }
       const gotoPoke = e.target.closest("[data-rh-goto-poke]");
       if (gotoPoke && window.goPage) {
-        window.goPage("pokemon", {
+        window.goPage("pokedex", {
           pokeId: parseInt(gotoPoke.dataset.rhGotoPoke, 10),
         });
         return;
@@ -564,7 +681,7 @@
     });
   }
 
-  async function loadColors() {
+  async function loadMetadata() {
     try {
       const res = await fetch("pokemon-colors.json");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -574,11 +691,28 @@
       console.warn("pokemon-colors.json unavailable", err);
       colorsById = {};
     }
+
+    try {
+      const res = await fetch("monsters.json", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const raw = JSON.parse(stripInvalidJsonControls(await res.text()));
+      const records = Array.isArray(raw) ? raw : raw.monsters || raw.pokemon || [];
+      monstersById = new Map(
+        records
+          .map(normalizeMonster)
+          .filter(Boolean)
+          .map((monster) => [monster.id, monster])
+      );
+    } catch (err) {
+      console.warn("monsters.json unavailable for random filters", err);
+      monstersById = new Map();
+    }
   }
 
-  function show() {
+  async function show() {
     $("page-random")?.classList.remove("is-hidden");
     bind();
+    await window.RandomHunt.ready;
     renderFilters();
     if (!lastResult) readyEmpty();
   }
@@ -590,7 +724,7 @@
   window.RandomHunt = {
     show,
     hide,
-    ready: loadColors(),
+    ready: loadMetadata(),
     get filters() {
       return { ...filters };
     },

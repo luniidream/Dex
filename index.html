@@ -27,7 +27,7 @@
       <nav class="main-nav" aria-label="Primary">
         <button type="button" class="nav-link is-active" data-page="locations" id="nav-locations">Locations</button>
         <button type="button" class="nav-link" data-page="pokedex" id="nav-pokedex">PokéDex</button>
-        <button type="button" class="nav-link" data-page="hunt" id="nav-hunt">Hunt</button>
+        <button type="button" class="nav-link" data-page="hunt" id="nav-hunt">Route</button>
         <button type="button" class="nav-link" data-page="random" id="nav-random">Random</button>
         <button type="button" class="nav-link" data-page="altering" id="nav-altering">Altering Cave</button>
       </nav>
@@ -140,11 +140,11 @@
       </section>
     </main>
 
-    <!-- HUNT -->
+    <!-- ROUTE -->
     <main class="shell shell-hunt is-hidden" id="page-hunt">
       <section class="panel hunt-panel">
         <div class="panel-head hunt-head">
-          <h1>Hunt</h1>
+          <h1>Route</h1>
         </div>
 
         <form class="hunt-form toolbar" id="hunt-form" autocomplete="off">
@@ -170,7 +170,7 @@
 
         <div id="hunt-results" class="hunt-results">
           <div class="empty-state hunt-empty">
-            <p class="empty-kicker">Hunt</p>
+            <p class="empty-kicker">Route</p>
             <h2>Enter a Pokémon</h2>
           </div>
         </div>
@@ -194,6 +194,18 @@
               <label class="filter-select">
                 <span class="field-label">Color</span>
                 <select id="rh-color" class="dex-select"></select>
+              </label>
+              <label class="filter-select">
+                <span class="field-label">Type</span>
+                <select id="rh-type" class="dex-select"></select>
+              </label>
+              <label class="filter-select">
+                <span class="field-label">Egg Group</span>
+                <select id="rh-egg-group" class="dex-select"></select>
+              </label>
+              <label class="filter-select">
+                <span class="field-label">Catch Rate</span>
+                <select id="rh-catch-rate" class="dex-select"></select>
               </label>
               <label class="filter-select">
                 <span class="field-label">Season</span>

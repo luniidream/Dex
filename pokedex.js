@@ -1,367 +1,371 @@
 /**
- * PokéDex — Dynamic Pokémon Grid Display from monsters.json
- * Grid layout with search, type/generation filters, and detail modal
+ * PokeDex - Gen 1 through Gen 5 grid backed by monsters.json.
  */
 (function () {
   const SPRITE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
-  const SHINY = `${SPRITE}/shiny`;
+  const ART = `${SPRITE}/other/official-artwork`;
+  const SHINY_ART = `${SPRITE}/shiny`;
+  const MAX_DEX = 649;
 
   const $ = (id) => document.getElementById(id);
 
   let allMonsters = [];
-  let filteredMonsters = [];
-  let selectedMonsterId = null;
+  let visibleMonsters = [];
+  let selectedId = null;
   let bound = false;
 
-  const filters = {
-    search: "",
-    type: "All",
-    generation: "All",
-  };
+  const filters = { search: "", type: "All", generation: "All" };
 
-  function escapeHtml(str) {
-    return String(str)
+  function escapeHtml(value) {
+    return String(value ?? "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
   }
 
-  function getGeneration(id) {
+  function stripInvalidJsonControls(text) {
+    return text.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
+  }
+
+  async function fetchJsonText(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`${url} HTTP ${res.status}`);
+    return JSON.parse(stripInvalidJsonControls(await res.text()));
+  }
+
+  function generationFor(id) {
     if (id <= 151) return 1;
     if (id <= 251) return 2;
     if (id <= 386) return 3;
     if (id <= 493) return 4;
-    if (id <= 649) return 5;
-    if (id <= 721) return 6;
-    if (id <= 809) return 7;
-    if (id <= 905) return 8;
-    if (id <= 1025) return 9;
-    return 10;
+    return 5;
   }
 
-  function getTypes(monster) {
-    // Extract types from the monster data
-    if (monster.types && Array.isArray(monster.types)) {
-      return monster.types.map(t => typeof t === 'string' ? t : t.name || t);
-    }
-    if (monster.type) {
-      return [monster.type];
-    }
-    return [];
+  function titleCase(value) {
+    return String(value ?? "")
+      .toLowerCase()
+      .split(/[\s_-]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
   }
 
-  function matchesFilters(monster) {
-    // Search filter
-    if (filters.search) {
-      const query = filters.search.toLowerCase();
-      const matchesName = monster.name.toLowerCase().includes(query);
-      const matchesId = String(monster.id).includes(query);
-      if (!matchesName && !matchesId) return false;
-    }
+  function normalizeArray(value) {
+    if (Array.isArray(value)) return value;
+    if (value == null || value === "") return [];
+    return [value];
+  }
 
-    // Type filter
-    if (filters.type !== "All") {
-      const types = getTypes(monster);
-      if (!types.some(t => t.toLowerCase() === filters.type.toLowerCase())) {
-        return false;
+  function normalizeTypes(monster) {
+    return normalizeArray(monster.types ?? monster.type)
+      .map((type) => (typeof type === "string" ? type : type?.name))
+      .filter(Boolean)
+      .map(titleCase);
+  }
+
+  function normalizeAbilities(monster) {
+    const seen = new Set();
+    return normalizeArray(monster.abilities)
+      .map((ability) => (typeof ability === "string" ? ability : ability?.name))
+      .filter(Boolean)
+      .filter((name) => {
+        const key = name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
+  function normalizeStats(monster) {
+    const source = monster.base_stats || monster.stats || {};
+    const read = (...keys) => {
+      for (const key of keys) {
+        const value = source[key];
+        if (Number.isFinite(Number(value))) return Number(value);
       }
-    }
+      return null;
+    };
+    return [
+      ["HP", read("HP", "hp")],
+      ["Atk", read("Atk", "attack", "atk")],
+      ["Def", read("Def", "defense", "def")],
+      ["SpA", read("SpA", "sp_attack", "special_attack")],
+      ["SpD", read("SpD", "sp_defense", "special_defense")],
+      ["Spe", read("Spe", "speed", "spe")],
+    ];
+  }
 
-    // Generation filter
-    if (filters.generation !== "All") {
-      const gen = getGeneration(monster.id);
-      if (gen !== parseInt(filters.generation, 10)) {
-        return false;
-      }
-    }
+  function normalizeLocations(monster) {
+    return normalizeArray(monster.encounter_locations || monster.locations)
+      .map((loc) => {
+        if (typeof loc === "string") return { location: loc };
+        return {
+          region: loc.region_name || loc.region,
+          location: loc.location_name_full || loc.location_name || loc.name,
+          method: loc.type || loc.encounter,
+          season: loc.season,
+          minLevel: loc.min_level ?? loc.minLevel,
+          maxLevel: loc.max_level ?? loc.maxLevel,
+        };
+      })
+      .filter((loc) => loc.location);
+  }
 
+  function normalizeMonster(raw) {
+    const id = Number(raw.id ?? raw.dex_number ?? raw.dexNumber);
+    if (!Number.isInteger(id) || id < 1 || id > MAX_DEX) return null;
+    const name = String(raw.name || `#${id}`).trim();
+    return {
+      raw,
+      id,
+      dex_number: id,
+      name,
+      types: normalizeTypes(raw),
+      stats: normalizeStats(raw),
+      abilities: normalizeAbilities(raw),
+      moves: normalizeArray(raw.moves),
+      egg_groups: normalizeArray(raw.egg_groups || raw.eggGroups).map(titleCase),
+      catch_rate: raw.catch_rate ?? raw.catchRate ?? null,
+      shiny_color: raw.shiny_color ?? null,
+      sprite_url: raw.sprite_url || `${ART}/${id}.png`,
+      shiny_sprite_url: raw.shiny_sprite_url || `${SHINY_ART}/${id}.png`,
+      encounter_locations: normalizeLocations(raw),
+      generation: generationFor(id),
+    };
+  }
+
+  function matches(monster) {
+    const query = filters.search.trim().toLowerCase();
+    if (query) {
+      const dex = String(monster.id);
+      const padded = dex.padStart(3, "0");
+      if (!monster.name.toLowerCase().includes(query) && !dex.includes(query) && !padded.includes(query)) return false;
+    }
+    if (filters.type !== "All" && !monster.types.some((type) => type.toLowerCase() === filters.type.toLowerCase())) return false;
+    if (filters.generation !== "All" && monster.generation !== Number(filters.generation)) return false;
     return true;
   }
 
-  function buildFilteredList() {
-    filteredMonsters = allMonsters.filter(matchesFilters);
-    return filteredMonsters;
+  function typePills(types) {
+    return (types.length ? types : ["Unknown"])
+      .map((type) => `<span class="type-pill type-${escapeHtml(type.toLowerCase())}">${escapeHtml(type)}</span>`)
+      .join("");
   }
 
   function renderGrid() {
     const grid = $("pokedex-grid");
     const count = $("pdex-count");
     if (!grid) return;
-
-    buildFilteredList();
-
-    if (filteredMonsters.length === 0) {
-      grid.innerHTML = `<p class="muted" style="grid-column: 1/-1; text-align: center; padding: 2rem;">No Pokémon match those filters.</p>`;
-      if (count) count.textContent = "0 Pokémon";
+    visibleMonsters = allMonsters.filter(matches);
+    if (count) count.textContent = `${visibleMonsters.length} Pokemon`;
+    if (!visibleMonsters.length) {
+      grid.innerHTML = `<p class="muted pdex-grid-empty">No Pokemon match those filters.</p>`;
       return;
     }
-
-    grid.innerHTML = filteredMonsters
-      .map((m) => {
-        const spriteUrl = `${SPRITE}/other/official-artwork/${m.id}.png`;
-        return `
-          <button type="button" class="pdex-card" data-pdex-id="${m.id}" title="${escapeHtml(m.name)}">
+    grid.innerHTML = visibleMonsters
+      .map(
+        (m) => `
+          <button type="button" class="pdex-card" data-pdex-id="${m.id}" aria-label="Open ${escapeHtml(m.name)}">
             <div class="pdex-card-artwork">
-              <img src="${spriteUrl}" alt="${escapeHtml(m.name)}" width="96" height="96" loading="lazy" onerror="this.src='${SPRITE}/0.png';" />
+              <img src="${escapeHtml(m.sprite_url)}" alt="" width="96" height="96" loading="lazy"
+                onerror="this.src='${SPRITE}/${m.id}.png';this.onerror=function(){this.src='${SPRITE}/0.png';};" />
             </div>
             <div class="pdex-card-info">
               <p class="pdex-card-id">#${String(m.id).padStart(3, "0")}</p>
               <p class="pdex-card-name">${escapeHtml(m.name)}</p>
+              <div class="type-row">${typePills(m.types)}</div>
             </div>
-          </button>`;
-      })
+          </button>`
+      )
       .join("");
-
-    if (count) count.textContent = `${filteredMonsters.length} Pokémon`;
   }
 
   function renderFilters() {
     const typeSelect = $("pdex-type-select");
     const genSelect = $("pdex-gen-select");
-
     if (typeSelect) {
-      const types = new Set();
-      allMonsters.forEach((m) => {
-        getTypes(m).forEach((t) => types.add(t));
-      });
-
+      const types = [...new Set(allMonsters.flatMap((m) => m.types))].sort();
       typeSelect.innerHTML =
         `<option value="All">All types</option>` +
-        [...types].sort().map((t) => `<option value="${t}">${escapeHtml(t)}</option>`).join("");
+        types.map((type) => `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`).join("");
       typeSelect.value = filters.type;
     }
-
     if (genSelect) {
       genSelect.innerHTML =
-        `<option value="All">All generations</option>` +
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-          .map((g) => `<option value="${g}">Generation ${g}</option>`)
-          .join("");
+        `<option value="All">Gen 1-5</option>` +
+        [1, 2, 3, 4, 5].map((gen) => `<option value="${gen}">Generation ${gen}</option>`).join("");
       genSelect.value = filters.generation;
     }
   }
 
+  function movesHtml(monster) {
+    const groups = new Map();
+    for (const move of monster.moves) {
+      const method = titleCase(move.type || move.method || "Other");
+      if (!groups.has(method)) groups.set(method, []);
+      groups.get(method).push(move);
+    }
+    if (!groups.size) return `<p class="muted">No moves listed.</p>`;
+    return [...groups.entries()]
+      .map(([method, moves]) => {
+        const chips = moves
+          .slice(0, 18)
+          .map((move) => {
+            const level = move.level != null ? ` Lv ${move.level}` : "";
+            return `<span class="pdex-move">${escapeHtml(move.name || "Unknown")}${escapeHtml(level)}</span>`;
+          })
+          .join("");
+        return `<section><h4>${escapeHtml(method)}</h4><div class="pdex-moves-list">${chips}</div></section>`;
+      })
+      .join("");
+  }
+
+  function locationsHtml(monster) {
+    const locations = monster.encounter_locations.slice(0, 18);
+    if (!locations.length) return `<p class="muted">No wild locations listed.</p>`;
+    return locations
+      .map((loc) => {
+        const levels =
+          loc.minLevel == null && loc.maxLevel == null
+            ? ""
+            : loc.minLevel === loc.maxLevel
+              ? ` Lv ${loc.minLevel}`
+              : ` Lv ${loc.minLevel}-${loc.maxLevel}`;
+        const meta = [loc.region, loc.method, loc.season, levels.trim()].filter(Boolean).join(" - ");
+        return `<li><strong>${escapeHtml(loc.location)}</strong><span>${escapeHtml(meta)}</span></li>`;
+      })
+      .join("");
+  }
+
   function renderDetail(id) {
     const monster = allMonsters.find((m) => m.id === id);
-    if (!monster) {
-      $("pdex-empty")?.classList.remove("is-hidden");
-      $("pdex-detail")?.classList.add("is-hidden");
-      return;
-    }
-
-    selectedMonsterId = id;
-    const empty = $("pdex-empty");
+    if (!monster) return;
+    selectedId = id;
+    $("pdex-empty")?.classList.add("is-hidden");
     const detail = $("pdex-detail");
-    if (empty) empty.classList.add("is-hidden");
-    if (detail) detail.classList.remove("is-hidden");
+    detail?.classList.remove("is-hidden");
+    detail?.setAttribute("role", "dialog");
+    detail?.setAttribute("aria-modal", "true");
+    detail?.setAttribute("aria-labelledby", "pdex-detail-name");
+    if (detail && !$("pdex-modal-close")) {
+      detail.insertAdjacentHTML(
+        "afterbegin",
+        `<button type="button" class="pdex-modal-close" id="pdex-modal-close" aria-label="Close PokeDex details">Close</button>`
+      );
+    }
+    const detailId = $("pdex-detail-id");
+    const detailName = $("pdex-detail-name");
+    const detailMeta = $("pdex-detail-meta");
+    if (detailId) detailId.textContent = `#${String(id).padStart(3, "0")}`;
+    if (detailName) detailName.textContent = monster.name;
+    if (detailMeta) detailMeta.textContent = `${monster.types.join(" / ") || "Unknown"} - Gen ${monster.generation}`;
 
-    const types = getTypes(monster);
-    const gen = getGeneration(id);
-    const spriteUrl = `${SPRITE}/other/official-artwork/${id}.png`;
-    const shinyUrl = `${SHINY}/other/official-artwork/${id}.png`;
-
-    const meta = [
-      `#${String(id).padStart(3, "0")}`,
-      types.map(escapeHtml).join(" / ") || "Unknown",
-      `Gen ${gen}`,
-    ].join(" · ");
-
-    // Update header
-    const idEl = $("pdex-detail-id");
-    const nameEl = $("pdex-detail-name");
-    const metaEl = $("pdex-detail-meta");
-    const spriteEl = $("pdex-detail-sprite");
-    const shinyEl = $("pdex-detail-shiny");
-
-    if (idEl) idEl.textContent = `#${String(id).padStart(3, "0")}`;
-    if (nameEl) nameEl.textContent = escapeHtml(monster.name);
-    if (metaEl) metaEl.textContent = meta;
-    if (spriteEl) {
-      spriteEl.src = spriteUrl;
-      spriteEl.alt = `${monster.name}`;
-      spriteEl.onerror = function () {
-        this.src = `${SPRITE}/0.png`;
+    const sprite = $("pdex-detail-sprite");
+    const shiny = $("pdex-detail-shiny");
+    if (sprite) {
+      sprite.src = monster.sprite_url;
+      sprite.alt = monster.name;
+      sprite.onerror = function () {
+        this.src = `${SPRITE}/${id}.png`;
+        this.onerror = null;
       };
     }
-    if (shinyEl) {
-      shinyEl.src = shinyUrl;
-      shinyEl.alt = `Shiny ${monster.name}`;
-      shinyEl.onerror = function () {
-        this.src = `${SPRITE}/0.png`;
+    if (shiny) {
+      shiny.src = monster.shiny_sprite_url;
+      shiny.alt = `Shiny ${monster.name}`;
+      shiny.onerror = function () {
+        this.src = `${SPRITE}/shiny/${id}.png`;
+        this.onerror = null;
       };
     }
 
-    // Render stats
-    renderStats(monster);
-
-    // Render abilities
-    renderAbilities(monster);
-
-    // Render moves
-    renderMoves(monster);
-  }
-
-  function renderStats(monster) {
-    const statsEl = $("pdex-stats");
-    if (!statsEl) return;
-
-    const stats = monster.stats || [];
-    if (stats.length === 0) {
-      statsEl.innerHTML = `<p class="muted">No stats available.</p>`;
-      return;
-    }
-
-    statsEl.innerHTML = `
+    const stats = $("pdex-stats");
+    if (stats) stats.innerHTML = `
       <h3 class="pdex-section-title">Base Stats</h3>
       <div class="pdex-stats-grid">
-        ${stats
-          .map(
-            (stat) => `
-          <div class="pdex-stat">
-            <span class="pdex-stat-label">${escapeHtml(stat.name || stat.stat?.name || "Unknown")}</span>
-            <span class="pdex-stat-value">${stat.base_stat || stat.value || 0}</span>
-          </div>`
-          )
+        ${monster.stats
+          .map(([label, value]) => `<div class="pdex-stat"><span class="pdex-stat-label">${label}</span><span class="pdex-stat-value">${value ?? "?"}</span></div>`)
           .join("")}
       </div>`;
-  }
 
-  function renderAbilities(monster) {
-    const abilitiesEl = $("pdex-abilities");
-    if (!abilitiesEl) return;
+    const abilities = $("pdex-abilities");
+    if (abilities) abilities.innerHTML = `
+      <h3 class="pdex-section-title">Details</h3>
+      <div class="pdex-detail-grid">
+        <div><span>Types</span><strong>${typePills(monster.types)}</strong></div>
+        <div><span>Abilities</span><strong>${escapeHtml(monster.abilities.join(", ") || "Unknown")}</strong></div>
+        <div><span>Egg Groups</span><strong>${escapeHtml(monster.egg_groups.join(", ") || "Unknown")}</strong></div>
+        <div><span>Catch Rate</span><strong>${escapeHtml(monster.catch_rate ?? "Unknown")}</strong></div>
+      </div>
+      <h3 class="pdex-section-title">Wild Locations</h3>
+      <ul class="pdex-location-list">${locationsHtml(monster)}</ul>`;
 
-    const abilities = monster.abilities || [];
-    if (abilities.length === 0) {
-      abilitiesEl.innerHTML = `<p class="muted">No abilities listed.</p>`;
-      return;
-    }
-
-    abilitiesEl.innerHTML = `
-      <h3 class="pdex-section-title">Abilities</h3>
-      <div class="pdex-abilities-list">
-        ${abilities
-          .map(
-            (ability) => `
-          <div class="pdex-ability">
-            <span class="pdex-ability-name">${escapeHtml(ability.name || "Unknown")}</span>
-          </div>`
-          )
-          .join("")}
-      </div>`;
-  }
-
-  function renderMoves(monster) {
-    const movesEl = $("pdex-moves");
-    if (!movesEl) return;
-
-    const moves = (monster.moves || []).slice(0, 12); // Show first 12 moves
-    if (moves.length === 0) {
-      movesEl.innerHTML = `<p class="muted">No moves listed.</p>`;
-      return;
-    }
-
-    movesEl.innerHTML = `
-      <h3 class="pdex-section-title">Moves (first 12)</h3>
-      <div class="pdex-moves-list">
-        ${moves
-          .map(
-            (move) => `
-          <div class="pdex-move">
-            <span class="pdex-move-name">${escapeHtml(move.name || "Unknown")}</span>
-            <span class="pdex-move-type">${move.type ? escapeHtml(move.type) : ""}</span>
-          </div>`
-          )
-          .join("")}
-      </div>`;
+    const moves = $("pdex-moves");
+    if (moves) moves.innerHTML = `
+      <h3 class="pdex-section-title">Movesets</h3>
+      <div class="pdex-move-groups">${movesHtml(monster)}</div>`;
   }
 
   function bind() {
     if (bound) return;
     bound = true;
-
-    const root = $("page-pokedex");
-    if (!root) return;
-
-    // Search input
-    const searchEl = $("pdex-search");
-    if (searchEl) {
-      searchEl.addEventListener("input", (e) => {
-        filters.search = e.target.value;
-        renderGrid();
-      });
-    }
-
-    // Type filter
-    const typeEl = $("pdex-type-select");
-    if (typeEl) {
-      typeEl.addEventListener("change", (e) => {
-        filters.type = e.target.value;
-        renderGrid();
-      });
-    }
-
-    // Generation filter
-    const genEl = $("pdex-gen-select");
-    if (genEl) {
-      genEl.addEventListener("change", (e) => {
-        filters.generation = e.target.value;
-        renderGrid();
-      });
-    }
-
-    // Grid card clicks
-    root.addEventListener("click", (e) => {
-      const card = e.target.closest("[data-pdex-id]");
-      if (card) {
-        const id = parseInt(card.dataset.pdexId, 10);
-        renderDetail(id);
-      }
+    $("pdex-search")?.addEventListener("input", (event) => {
+      filters.search = event.target.value;
+      renderGrid();
+    });
+    $("pdex-type-select")?.addEventListener("change", (event) => {
+      filters.type = event.target.value;
+      renderGrid();
+    });
+    $("pdex-gen-select")?.addEventListener("change", (event) => {
+      filters.generation = event.target.value;
+      renderGrid();
+    });
+    $("pokedex-grid")?.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-pdex-id]");
+      if (!card) return;
+      renderDetail(Number(card.dataset.pdexId));
+    });
+    $("pdex-detail")?.addEventListener("click", (event) => {
+      if (event.target.id === "pdex-detail" || event.target.closest("#pdex-modal-close")) closeModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeModal();
     });
   }
 
-  function resetFilters() {
-    filters.search = "";
-    filters.type = "All";
-    filters.generation = "All";
-    const searchEl = $("pdex-search");
-    if (searchEl) searchEl.value = "";
-    renderFilters();
-    renderGrid();
+  function closeModal() {
+    $("pdex-detail")?.classList.add("is-hidden");
+    $("pdex-empty")?.classList.remove("is-hidden");
   }
 
   async function load() {
-    try {
-      const res = await fetch("monsters.json");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      allMonsters = await res.json();
-      return allMonsters;
-    } catch (err) {
-      console.error("Failed to load monsters.json", err);
-      return [];
-    }
+    const raw = await fetchJsonText("monsters.json");
+    const records = Array.isArray(raw) ? raw : raw.monsters || raw.pokemon || [];
+    allMonsters = records.map(normalizeMonster).filter(Boolean).sort((a, b) => a.id - b.id);
+    return allMonsters;
   }
 
-  function show() {
+  async function show() {
     $("page-pokedex")?.classList.remove("is-hidden");
     bind();
-
-    if (allMonsters.length === 0) {
-      const grid = $("pokedex-grid");
-      if (grid) grid.innerHTML = `<p class="muted">Loading Pokémon data…</p>`;
-
-      load()
-        .then(() => {
-          renderFilters();
-          renderGrid();
-        })
-        .catch((err) => {
-          const grid = $("pokedex-grid");
-          if (grid)
-            grid.innerHTML = `<p class="muted">Error loading Pokémon data: ${escapeHtml(err.message)}</p>`;
-        });
-    } else {
+    const grid = $("pokedex-grid");
+    try {
+      if (!allMonsters.length) {
+        if (grid) grid.innerHTML = `<p class="muted pdex-grid-empty">Loading Pokemon data...</p>`;
+        await load();
+        renderFilters();
+      }
       renderGrid();
+      const requestedId = Number(window.DexHunt?.state?.poke?.selectedId);
+      if (Number.isInteger(requestedId) && requestedId >= 1 && requestedId <= MAX_DEX) selectedId = requestedId;
+      if (selectedId) renderDetail(selectedId);
+    } catch (err) {
+      console.error("Failed to load monsters.json", err);
+      if (grid) grid.innerHTML = `<p class="muted pdex-grid-empty">Could not load monsters.json. ${escapeHtml(err.message)}</p>`;
+      const count = $("pdex-count");
+      if (count) count.textContent = "Failed to load";
     }
   }
 
@@ -372,9 +376,16 @@
   window.PokeDex = {
     show,
     hide,
-    ready: load(),
-    get filters() {
-      return { ...filters };
+    open(id) {
+      selectedId = Number(id);
+      return show();
+    },
+    ready: load().catch((err) => {
+      console.warn("PokeDex preload failed", err);
+      return [];
+    }),
+    get monsters() {
+      return [...allMonsters];
     },
   };
 })();

@@ -260,7 +260,10 @@ function bindSelect(id, onChange) {
 /* ---------- Routing ---------- */
 
 function setHash() {
-  if (state.page === "pokemon") {
+  if (state.page === "pokedex") {
+    const id = state.poke.selectedId;
+    location.hash = id ? `#/pokedex/${id}` : "#/pokedex";
+  } else if (state.page === "pokemon") {
     const id = state.poke.selectedId;
     location.hash = id ? `#/pokemon/${id}` : "#/pokemon";
   } else if (state.page === "hunt") {
@@ -286,8 +289,8 @@ function setHash() {
 function readHash() {
   const h = location.hash.replace(/^#\/?/, "");
   const [page, ...rest] = h.split("/");
-  if (page === "pokemon") {
-    state.page = "pokemon";
+  if (page === "pokemon" || page === "pokedex") {
+    state.page = "pokedex";
     const id = parseInt(rest[0], 10);
     state.poke.selectedId = Number.isFinite(id) ? id : null;
   } else if (page === "hunt") {
@@ -320,10 +323,11 @@ function readHash() {
 }
 
 function showPage() {
-  const page = state.page;
+  const page = state.page === "pokemon" ? "pokedex" : state.page;
+  state.page = page;
   $("page-locations").classList.toggle("is-hidden", page !== "locations");
   $("page-pokedex").classList.toggle("is-hidden", page !== "pokedex");
-  $("page-hunt").classList.toggle("is-hidden", page !== "hunt");
+  $("page-hunt")?.classList.toggle("is-hidden", page !== "hunt");
   $("page-random")?.classList.toggle("is-hidden", page !== "random");
   $("page-altering")?.classList.toggle("is-hidden", page !== "altering");
   $("nav-locations")?.classList.toggle("is-active", page === "locations");
@@ -358,11 +362,12 @@ function showPage() {
 }
 
 function goPage(page, opts = {}) {
-  state.page = page;
+  state.page = page === "pokemon" ? "pokedex" : page;
   if (opts.pokeId != null) state.poke.selectedId = opts.pokeId;
   if (opts.locKey != null) state.loc.selectedKey = opts.locKey;
   if (opts.huntId != null) state.hunt.selectedId = opts.huntId;
   showPage();
+  if (state.page === "pokedex" && opts.pokeId != null) window.PokeDex?.open?.(opts.pokeId);
   setHash();
   refresh();
 }
@@ -957,7 +962,7 @@ function renderHuntResults() {
   if (!poke) {
     box.innerHTML = `
       <div class="empty-state hunt-empty">
-        <p class="empty-kicker">Hunt</p>
+        <p class="empty-kicker">Route</p>
         <h2>Enter a Pokémon</h2>
       </div>`;
     return;
@@ -1138,7 +1143,7 @@ function bindEvents() {
     renderLocationList();
   });
 
-  $("poke-search").addEventListener("input", (e) => {
+  $("poke-search")?.addEventListener("input", (e) => {
     state.poke.query = e.target.value;
     renderPokemonList();
   });
@@ -1199,7 +1204,7 @@ function bindEvents() {
     renderLocationDetail();
   });
 
-  $("pokemon-list").addEventListener("click", (e) => {
+  $("pokemon-list")?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-poke-id]");
     if (!btn) return;
     state.poke.selectedId = parseInt(btn.dataset.pokeId, 10);
@@ -1214,7 +1219,7 @@ function bindEvents() {
     goPage("pokemon", { pokeId: parseInt(btn.dataset.gotoPoke, 10) });
   });
 
-  $("poke-groups").addEventListener("click", (e) => {
+  $("poke-groups")?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-goto-loc]");
     if (!btn) return;
     goPage("locations", { locKey: decodeURIComponent(btn.dataset.gotoLoc) });
