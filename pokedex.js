@@ -241,6 +241,7 @@
   function renderDetail(id) {
     const monster = allMonsters.find((m) => m.id === id);
     if (!monster) return;
+    ensureModalHost();
     selectedId = id;
     $("pdex-empty")?.classList.add("is-hidden");
     const detail = $("pdex-detail");
@@ -310,6 +311,7 @@
   function bind() {
     if (bound) return;
     bound = true;
+    ensureModalHost();
     $("pdex-search")?.addEventListener("input", (event) => {
       filters.search = event.target.value;
       renderGrid();
@@ -338,6 +340,13 @@
   function closeModal() {
     $("pdex-detail")?.classList.add("is-hidden");
     $("pdex-empty")?.classList.remove("is-hidden");
+  }
+
+  function ensureModalHost() {
+    const detail = $("pdex-detail");
+    if (detail && detail.parentElement !== document.body) {
+      document.body.appendChild(detail);
+    }
   }
 
   async function load() {
