@@ -233,7 +233,12 @@
             return `<span class="pdex-move">${escapeHtml(move.name || "Unknown")}${escapeHtml(level)}</span>`;
           })
           .join("");
-        return `<section><h4>${escapeHtml(method)}</h4><div class="pdex-moves-list">${chips}</div></section>`;
+        const isCollapsed = method === "TM / HM";
+        return `
+          <details class="pdex-disclosure pdex-move-section"${isCollapsed ? "" : " open"}>
+            <summary>${escapeHtml(method)}${isCollapsed ? ` <span>(${moves.length} moves)</span>` : ""}</summary>
+            <div class="pdex-moves-list">${chips}</div>
+          </details>`;
       })
       .join("");
   }
@@ -292,35 +297,46 @@
   function locationsHtml(monster) {
     const locations = monster.encounter_locations.slice(0, 18);
     if (!locations.length) return `<p class="muted">No wild locations listed.</p>`;
-    const region = locations[0]?.region || "Region";
-    const rows = locations
-      .map((loc) => {
-        const levels =
-          loc.minLevel == null && loc.maxLevel == null
-            ? "-"
-            : loc.minLevel === loc.maxLevel
-              ? loc.minLevel
-              : `${loc.minLevel}-${loc.maxLevel}`;
+    const groups = new Map();
+    for (const loc of locations) {
+      const region = loc.region || "Region";
+      if (!groups.has(region)) groups.set(region, []);
+      groups.get(region).push(loc);
+    }
+    return [...groups.entries()]
+      .map(([region, list], index) => {
+        const rows = list
+          .map((loc) => {
+            const levels =
+              loc.minLevel == null && loc.maxLevel == null
+                ? "-"
+                : loc.minLevel === loc.maxLevel
+                  ? loc.minLevel
+                  : `${loc.minLevel}-${loc.maxLevel}`;
+            return `
+              <tr>
+                <td>${escapeHtml(loc.location)}</td>
+                <td>${escapeHtml(loc.method || "-")}</td>
+                <td>${escapeHtml(levels)}</td>
+                <td>${escapeHtml(loc.morning || "-")}</td>
+                <td>${escapeHtml(loc.day || "-")}</td>
+                <td>${escapeHtml(loc.night || "-")}</td>
+                <td>${escapeHtml(!loc.season || loc.season === "Any" ? "All year" : loc.season)}</td>
+              </tr>`;
+          })
+          .join("");
         return `
-          <tr>
-            <td>${escapeHtml(loc.location)}</td>
-            <td>${escapeHtml(loc.method || "-")}</td>
-            <td>${escapeHtml(levels)}</td>
-            <td>${escapeHtml(loc.morning || "-")}</td>
-            <td>${escapeHtml(loc.day || "-")}</td>
-            <td>${escapeHtml(loc.night || "-")}</td>
-            <td>${escapeHtml(!loc.season || loc.season === "Any" ? "All year" : loc.season)}</td>
-          </tr>`;
+          <details class="pdex-disclosure pdex-location-group"${index === 0 ? " open" : ""}>
+            <summary><strong>${escapeHtml(region)}</strong><span>${list.length} spawn${list.length === 1 ? "" : "s"}</span></summary>
+            <div class="pdex-location-table-wrap">
+              <table class="pdex-location-table">
+                <thead><tr><th>Location</th><th>Method</th><th>Lv</th><th>Morning</th><th>Day</th><th>Night</th><th>Season</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </details>`;
       })
       .join("");
-    return `
-      <div class="pdex-location-region"><span></span><strong>${escapeHtml(region)}</strong><em>${locations.length} spawn${locations.length === 1 ? "" : "s"}</em></div>
-      <div class="pdex-location-table-wrap">
-        <table class="pdex-location-table">
-          <thead><tr><th>Location</th><th>Method</th><th>Lv</th><th>Morning</th><th>Day</th><th>Night</th><th>Season</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
   }
 
   function renderDetail(id) {
@@ -372,6 +388,10 @@
         <section>${statBarHtml(monster)}</section>
         <section>${detailRowsHtml(monster)}</section>
         ${evolutionsHtml(monster)}
+        <section class="pdex-learnset">
+          <h3 class="pdex-section-title">Learnset</h3>
+          <div class="pdex-move-groups">${movesHtml(monster)}</div>
+        </section>
       </div>`;
 
     const abilities = $("pdex-abilities");
@@ -380,9 +400,7 @@
       ${locationsHtml(monster)}`;
 
     const moves = $("pdex-moves");
-    if (moves) moves.innerHTML = `
-      <h3 class="pdex-section-title">Learnset</h3>
-      <div class="pdex-move-groups">${movesHtml(monster)}</div>`;
+    if (moves) moves.innerHTML = "";
   }
 
   function bind() {
