@@ -58,10 +58,17 @@
   }
 
   function normalizeTypes(monster) {
+    const seen = new Set();
     return normalizeArray(monster.types ?? monster.type)
       .map((type) => (typeof type === "string" ? type : type?.name))
       .filter(Boolean)
-      .map(titleCase);
+      .map(titleCase)
+      .filter((type) => {
+        const key = type.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
   }
 
   function normalizeAbilities(monster) {
@@ -252,7 +259,7 @@
     if (detail && !$("pdex-modal-close")) {
       detail.insertAdjacentHTML(
         "afterbegin",
-        `<button type="button" class="pdex-modal-close" id="pdex-modal-close" aria-label="Close PokeDex details">Close</button>`
+        `<button type="button" class="pdex-modal-close" id="pdex-modal-close" aria-label="Close PokeDex details">×</button>`
       );
     }
     const detailId = $("pdex-detail-id");
