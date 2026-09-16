@@ -2305,9 +2305,12 @@ input.search:focus,
   position: fixed;
   inset: 0;
   z-index: 80;
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 390px) minmax(0, 690px);
+  align-items: start;
+  justify-content: center;
   overflow: auto;
-  padding: clamp(1rem, 4vw, 3rem);
+  padding: clamp(1rem, 4vw, 3rem) 1rem;
   background: rgba(4, 10, 18, 0.72);
   backdrop-filter: blur(8px);
 }
@@ -2331,52 +2334,82 @@ input.search:focus,
 #pdex-detail .pdex-stats,
 #pdex-detail .pdex-abilities,
 #pdex-detail .pdex-moves {
-  width: min(920px, 100%);
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
   border-left: 1px solid var(--line);
   border-right: 1px solid var(--line);
   background: var(--bg-elev);
 }
 
 #pdex-detail .pdex-detail-head {
-  margin-top: 1.5rem;
+  grid-column: 1 / -1;
+  margin-top: 0;
   margin-bottom: 0;
-  padding: 1.35rem 1.5rem 1rem;
+  padding: 1.5rem 1.6rem 1.1rem;
   border-top: 1px solid var(--line);
+  background:
+    radial-gradient(520px 220px at 12% 0%, rgba(121, 185, 255, 0.16), transparent 62%),
+    var(--bg-elev);
   border-radius: 8px 8px 0 0;
 }
 
 #pdex-detail .pdex-stats,
 #pdex-detail .pdex-abilities,
 #pdex-detail .pdex-moves {
-  padding: 0 1.5rem 1.25rem;
+  padding: 1.15rem 1.75rem 1.25rem;
+  border-top: 0;
+}
+
+#pdex-detail .pdex-stats {
+  grid-column: 1;
+  border-right: 0;
+}
+
+#pdex-detail .pdex-abilities {
+  grid-column: 2;
+  border-left: 0;
 }
 
 #pdex-detail .pdex-moves {
+  grid-column: 1 / -1;
   border-bottom: 1px solid var(--line);
   border-radius: 0 0 8px 8px;
+  padding-top: 1.4rem;
 }
 
 .pdex-modal-close {
   position: sticky;
-  top: 0.75rem;
-  z-index: 2;
-  display: block;
-  margin-left: auto;
-  padding: 0.55rem 0.85rem;
+  top: 0.85rem;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  justify-self: end;
+  grid-column: 1 / -1;
+  width: 2.35rem;
+  height: 2.35rem;
+  margin: 0 0 0.6rem auto;
+  padding: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg-elev);
+  border-radius: 999px;
+  background: rgba(14, 29, 49, 0.96);
   color: var(--text);
   font: inherit;
+  font-size: 1.45rem;
+  line-height: 1;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.pdex-modal-close:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .pdex-detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 0.75rem;
 }
 
@@ -2396,7 +2429,9 @@ input.search:focus,
 }
 
 .pdex-detail-grid strong {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
   color: var(--text);
   font-size: 0.95rem;
   font-weight: 700;
@@ -2404,14 +2439,14 @@ input.search:focus,
 
 .pdex-detail-head {
   display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
+  gap: 1rem;
+  align-items: center;
   margin-bottom: 1.5rem;
 }
 
 .pdex-detail-head img {
-  width: 96px;
-  height: 96px;
+  width: 104px;
+  height: 104px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--bg-soft);
@@ -2420,70 +2455,167 @@ input.search:focus,
 }
 
 .pdex-section-title {
-  margin: 1.25rem 0 0.75rem;
-  font-size: 1.15rem;
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text);
 }
 
-.pdex-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 0.75rem;
+.pdex-section-title span {
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
-.pdex-stat {
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg-soft);
-  text-align: center;
+.pdex-left-stack {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.pdex-stat-bars {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.pdex-stat-row {
+  display: grid;
+  grid-template-columns: 3.8rem 2.1rem minmax(120px, 1fr);
+  align-items: center;
+  gap: 0.55rem;
 }
 
 .pdex-stat-label {
-  display: block;
+  display: inline;
+  margin: 0;
   font-size: 0.8rem;
   color: var(--muted);
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  text-transform: capitalize;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .pdex-stat-value {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.pdex-stat-track {
   display: block;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: var(--accent);
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 24%, transparent);
+}
+
+.pdex-stat-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #ffd94a));
+}
+
+.pdex-info-list {
+  display: grid;
+  gap: 0.52rem;
+  margin: 0;
+}
+
+.pdex-info-list div {
+  display: grid;
+  grid-template-columns: 7.25rem minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: baseline;
+}
+
+.pdex-info-list dt {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.pdex-info-list dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pdex-evolves {
+  padding-top: 0.15rem;
+}
+
+.pdex-evolves p {
+  margin: 0;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.pdex-evolves strong {
+  color: var(--text);
 }
 
 .pdex-abilities-list,
 .pdex-moves-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.75rem;
-}
-
-.pdex-location-list {
-  display: grid;
-  gap: 0.55rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.pdex-location-list li {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg-soft);
+  flex-wrap: wrap;
+  gap: 0.38rem;
 }
 
-.pdex-location-list span {
+.pdex-location-region {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
   color: var(--muted);
-  text-align: right;
+  font-weight: 700;
+}
+
+.pdex-location-region span {
+  width: 0;
+  height: 0;
+  border-top: 0.38rem solid transparent;
+  border-bottom: 0.38rem solid transparent;
+  border-left: 0.56rem solid var(--text);
+}
+
+.pdex-location-region strong {
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.pdex-location-region em {
+  font-style: normal;
+}
+
+.pdex-location-table-wrap {
+  overflow-x: auto;
+}
+
+.pdex-location-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+.pdex-location-table th,
+.pdex-location-table td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pdex-location-table th {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pdex-location-table td {
+  color: var(--text);
 }
 
 .pdex-move-groups {
@@ -2497,10 +2629,12 @@ input.search:focus,
 
 .pdex-ability,
 .pdex-move {
-  padding: 0.75rem;
+  padding: 0.34rem 0.55rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 7px;
   background: var(--bg-soft);
+  color: var(--text);
+  line-height: 1.15;
 }
 
 .pdex-ability-name,
@@ -2559,6 +2693,7 @@ input.search:focus,
   }
 
   #pdex-detail {
+    grid-template-columns: 1fr;
     padding: 0.75rem;
   }
 
@@ -2566,26 +2701,27 @@ input.search:focus,
   #pdex-detail .pdex-stats,
   #pdex-detail .pdex-abilities,
   #pdex-detail .pdex-moves {
+    grid-column: 1 / -1;
+    width: min(840px, 100%);
+    justify-self: center;
+    margin-top: 0;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
     padding-left: 0.85rem;
     padding-right: 0.85rem;
   }
 
-  .pdex-stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.45rem;
+  .pdex-stat-row {
+    grid-template-columns: 3.2rem 2rem minmax(100px, 1fr);
   }
 
-  .pdex-stat {
-    padding: 0.55rem 0.35rem;
+  .pdex-info-list div {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
   }
 
-  .pdex-location-list li {
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .pdex-location-list span {
-    text-align: left;
+  .pdex-location-table {
+    min-width: 560px;
   }
 }
 

@@ -114,6 +114,9 @@
           season: loc.season,
           minLevel: loc.min_level ?? loc.minLevel,
           maxLevel: loc.max_level ?? loc.maxLevel,
+          morning: loc.rarity_morning ?? loc.morning,
+          day: loc.rarity_day ?? loc.day,
+          night: loc.rarity_night ?? loc.night,
         };
       })
       .filter((loc) => loc.location);
@@ -207,9 +210,16 @@
   }
 
   function movesHtml(monster) {
+    const methodLabel = (value) => {
+      const key = String(value || "").toLowerCase();
+      if (key === "level") return "Level-up";
+      if (key === "tutor") return "Move tutor";
+      if (key.startsWith("tm")) return "TM / HM";
+      return titleCase(value || "Other");
+    };
     const groups = new Map();
     for (const move of monster.moves) {
-      const method = titleCase(move.type || move.method || "Other");
+      const method = methodLabel(move.type || move.method || "Other");
       if (!groups.has(method)) groups.set(method, []);
       groups.get(method).push(move);
     }
@@ -217,9 +227,9 @@
     return [...groups.entries()]
       .map(([method, moves]) => {
         const chips = moves
-          .slice(0, 18)
+          .slice(0, 84)
           .map((move) => {
-            const level = move.level != null ? ` Lv ${move.level}` : "";
+            const level = move.level != null ? ` ${move.level}` : "";
             return `<span class="pdex-move">${escapeHtml(move.name || "Unknown")}${escapeHtml(level)}</span>`;
           })
           .join("");
@@ -228,21 +238,89 @@
       .join("");
   }
 
+  function statBarHtml(monster) {
+    const total = monster.stats.reduce((sum, [, value]) => sum + (Number(value) || 0), 0);
+    return `
+      <h3 class="pdex-section-title">Base Stats <span>(BST ${total || "?"})</span></h3>
+      <div class="pdex-stat-bars">
+        ${monster.stats
+          .map(([label, value]) => {
+            const score = Number(value) || 0;
+            const width = Math.min(100, Math.max(4, (score / 160) * 100));
+            return `
+              <div class="pdex-stat-row">
+                <span class="pdex-stat-label">${escapeHtml(label).toUpperCase()}</span>
+                <strong class="pdex-stat-value">${value ?? "?"}</strong>
+                <span class="pdex-stat-track"><span style="width:${width}%"></span></span>
+              </div>`;
+          })
+          .join("")}
+      </div>`;
+  }
+
+  function detailRowsHtml(monster) {
+    const raw = monster.raw || {};
+    const tier = normalizeArray(raw.tiers).map(titleCase).join(", ") || "Unknown";
+    const points = raw.points ?? raw.point_value ?? null;
+    const heldItems = normalizeArray(raw.held_items || raw.heldItems)
+      .map((item) => (typeof item === "string" ? item : item?.name))
+      .filter(Boolean)
+      .join(", ");
+    return `
+      <h3 class="pdex-section-title">Details</h3>
+      <dl class="pdex-info-list">
+        <div><dt>Tier</dt><dd>${escapeHtml(tier)}</dd></div>
+        ${points != null ? `<div><dt>Points</dt><dd>${escapeHtml(points)} pts</dd></div>` : ""}
+        <div><dt>Catch Rate</dt><dd>${escapeHtml(monster.catch_rate ?? "Unknown")}</dd></div>
+        <div><dt>Egg Groups</dt><dd>${escapeHtml(monster.egg_groups.join(", ") || "Unknown")}</dd></div>
+        <div><dt>Wild Held Items</dt><dd>${escapeHtml(heldItems || "-")}</dd></div>
+      </dl>`;
+  }
+
+  function evolutionsHtml(monster) {
+    const evolutions = normalizeArray(monster.raw?.evolutions);
+    if (!evolutions.length) return "";
+    const rows = evolutions
+      .map((evo) => {
+        const condition = evo.type === "LEVEL" && evo.val != null ? ` · Lv ${evo.val}` : evo.val != null ? ` · ${evo.val}` : "";
+        return `<p><strong>${escapeHtml(evo.name || `#${evo.id}`)}</strong>${escapeHtml(condition)}</p>`;
+      })
+      .join("");
+    return `<section class="pdex-evolves"><h3 class="pdex-section-title">Evolves Into</h3>${rows}</section>`;
+  }
+
   function locationsHtml(monster) {
     const locations = monster.encounter_locations.slice(0, 18);
     if (!locations.length) return `<p class="muted">No wild locations listed.</p>`;
-    return locations
+    const region = locations[0]?.region || "Region";
+    const rows = locations
       .map((loc) => {
         const levels =
           loc.minLevel == null && loc.maxLevel == null
-            ? ""
+            ? "-"
             : loc.minLevel === loc.maxLevel
-              ? ` Lv ${loc.minLevel}`
-              : ` Lv ${loc.minLevel}-${loc.maxLevel}`;
-        const meta = [loc.region, loc.method, loc.season, levels.trim()].filter(Boolean).join(" - ");
-        return `<li><strong>${escapeHtml(loc.location)}</strong><span>${escapeHtml(meta)}</span></li>`;
+              ? loc.minLevel
+              : `${loc.minLevel}-${loc.maxLevel}`;
+        return `
+          <tr>
+            <td>${escapeHtml(loc.location)}</td>
+            <td>${escapeHtml(loc.method || "-")}</td>
+            <td>${escapeHtml(levels)}</td>
+            <td>${escapeHtml(loc.morning || "-")}</td>
+            <td>${escapeHtml(loc.day || "-")}</td>
+            <td>${escapeHtml(loc.night || "-")}</td>
+            <td>${escapeHtml(!loc.season || loc.season === "Any" ? "All year" : loc.season)}</td>
+          </tr>`;
       })
       .join("");
+    return `
+      <div class="pdex-location-region"><span></span><strong>${escapeHtml(region)}</strong><em>${locations.length} spawn${locations.length === 1 ? "" : "s"}</em></div>
+      <div class="pdex-location-table-wrap">
+        <table class="pdex-location-table">
+          <thead><tr><th>Location</th><th>Method</th><th>Lv</th><th>Morning</th><th>Day</th><th>Night</th><th>Season</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
   }
 
   function renderDetail(id) {
@@ -290,28 +368,20 @@
 
     const stats = $("pdex-stats");
     if (stats) stats.innerHTML = `
-      <h3 class="pdex-section-title">Base Stats</h3>
-      <div class="pdex-stats-grid">
-        ${monster.stats
-          .map(([label, value]) => `<div class="pdex-stat"><span class="pdex-stat-label">${label}</span><span class="pdex-stat-value">${value ?? "?"}</span></div>`)
-          .join("")}
+      <div class="pdex-left-stack">
+        <section>${statBarHtml(monster)}</section>
+        <section>${detailRowsHtml(monster)}</section>
+        ${evolutionsHtml(monster)}
       </div>`;
 
     const abilities = $("pdex-abilities");
     if (abilities) abilities.innerHTML = `
-      <h3 class="pdex-section-title">Details</h3>
-      <div class="pdex-detail-grid">
-        <div><span>Types</span><strong>${typePills(monster.types)}</strong></div>
-        <div><span>Abilities</span><strong>${escapeHtml(monster.abilities.join(", ") || "Unknown")}</strong></div>
-        <div><span>Egg Groups</span><strong>${escapeHtml(monster.egg_groups.join(", ") || "Unknown")}</strong></div>
-        <div><span>Catch Rate</span><strong>${escapeHtml(monster.catch_rate ?? "Unknown")}</strong></div>
-      </div>
       <h3 class="pdex-section-title">Wild Locations</h3>
-      <ul class="pdex-location-list">${locationsHtml(monster)}</ul>`;
+      ${locationsHtml(monster)}`;
 
     const moves = $("pdex-moves");
     if (moves) moves.innerHTML = `
-      <h3 class="pdex-section-title">Movesets</h3>
+      <h3 class="pdex-section-title">Learnset</h3>
       <div class="pdex-move-groups">${movesHtml(monster)}</div>`;
   }
 
